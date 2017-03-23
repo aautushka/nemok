@@ -1,6 +1,8 @@
 project(nemok CXX)
 
-set(SRC 
+set(SRC
+  server.h
+  server.cpp
 )
 
-#add_library(nemok ${SRC})
+add_library(nemok ${SRC})
