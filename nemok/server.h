@@ -120,6 +120,9 @@ private:
 	void run_server(std::promise<void> ready);
 	void run_client(int sock);
 	virtual void serve_client(client c) = 0;
+	void accept_connections(int sock, std::function<void(int)> handler);
+	void bind_server_socket(int sock);
+	void set_socket_opts(int sock);
 
 	std::thread _server_thread;
 	std::atomic<port_t> _server_port;

@@ -118,32 +118,9 @@ void server::run_server(std::promise<void> ready)
 			throw network_error();
 		}
 
-		int flag = 1;
-		
-		// TODO: do we really need TCP_NODELTA?
-		//setsockopt(s, IPPROTO_TCP, TCP_NODELTA, &flag, sizeof(flag));
+		set_socket_opts(s);
+		bind_server_socket(s);
 
-		setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-
-		struct sockaddr_in addr;
-		bzero(&addr, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(_server_port);
-		
-		if (-1 == bind(s, (struct sockaddr*)&addr, sizeof(addr)))
-		{
-			throw network_error();
-		}
-
-		socklen_t socklen = sizeof(addr);
-		if (-1 == getsockname(s, (sockaddr*)&addr, &socklen))
-		{
-			throw network_error();
-		}
-
-		_server_port = ntohs(addr.sin_port); 
-		
 		if (-1 == listen(s, 5))
 		{
 			throw network_error();
@@ -153,23 +130,62 @@ void server::run_server(std::promise<void> ready)
 
 		ready.set_value();
 
-		while (!_terminate_server_flag)
-		{
-			sockaddr_in client_addr;
-			socklen_t size = sizeof(client_addr);
-			int client = accept(s, (sockaddr*)&client_addr, &size);
-			if (client == -1 && errno == EWOULDBLOCK) 
-			{
-				::usleep(1);
-				continue;
-			}
-
-			clients.add_client(std::bind(&server::run_client, this, client));
-		}
+		accept_connections(s, [&](int s){
+			clients.add_client([=](){
+				this->run_client(s);});});
 	}
 	catch (std::exception&)
 	{
 		ready.set_exception(std::current_exception());
+	}
+}
+
+void server::set_socket_opts(int sock)
+{
+	int flag = 1;
+	
+	// TODO: do we really need TCP_NODELTA?
+	//setsockopt(s, IPPROTO_TCP, TCP_NODELTA, &flag, sizeof(flag));
+
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+}
+
+void server::bind_server_socket(int sock)
+{
+	struct sockaddr_in addr;
+	bzero(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(_server_port);
+	
+	if (-1 == bind(sock, (struct sockaddr*)&addr, sizeof(addr)))
+	{
+		throw network_error();
+	}
+
+	socklen_t socklen = sizeof(addr);
+	if (-1 == getsockname(sock, (sockaddr*)&addr, &socklen))
+	{
+		throw network_error();
+	}
+
+	_server_port = ntohs(addr.sin_port); 
+}
+
+void server::accept_connections(int sock, std::function<void(int)> handler)
+{
+	while (!_terminate_server_flag)
+	{
+		sockaddr_in client_addr;
+		socklen_t size = sizeof(client_addr);
+		int client = accept(sock, (sockaddr*)&client_addr, &size);
+		if (client == -1 && errno == EWOULDBLOCK) 
+		{
+			::usleep(1);
+			continue;
+		}
+
+		handler(client);
 	}
 }
 

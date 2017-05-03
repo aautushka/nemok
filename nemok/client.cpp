@@ -37,10 +37,7 @@ bool client::connected() const
 
 void client::connect(port_t port)
 {
-	if (_sock != -1)
-	{
-		throw already_connected();
-	}
+	assert(!connected());
 
 	_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sock == -1)

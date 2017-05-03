@@ -45,3 +45,16 @@ TEST_F(server_test, communicates_with_echo_server)
 
 	EXPECT_EQ("hello world", nemok::read_string_from_client(client, 11));
 }
+
+TEST_F(server_test, handles_multiple_connections)
+{
+	start();
+
+	auto client2 = nemok::connect_client(server);
+	
+	client.write("hello world", 11);
+	client2.write("hola mundo!", 11);
+
+	EXPECT_EQ("hello world", nemok::read_string_from_client(client, 11));
+	EXPECT_EQ("hola mundo!", nemok::read_string_from_client(client2, 11));
+}
