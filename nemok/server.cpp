@@ -9,6 +9,7 @@
 #include <vector>
 #include <thread>
 #include <iostream>
+#include <cassert>
 
 #include "server.h"
 
@@ -206,7 +207,7 @@ void server::run_client(int client_socket)
 	}
 }
 
-void echo_server::serve_client(client c)
+void echo::serve_client(client c)
 {
 	std::vector<uint8_t> buffer(1024);
 	size_t bytes_received = 0;
@@ -233,6 +234,40 @@ std::string read_string_from_client(client& cl, size_t len)
 		ret.resize(bytes_read);
 	}
 	return std::move(ret); 
+}
+
+telnet& telnet::when(std::string input)
+{
+	auto e = std::make_pair(std::move(input), std::string());
+	_expectations.emplace_back(std::move(e));
+
+	return *this;
+}
+
+telnet& telnet::reply(std::string output)
+{
+	assert(!_expectations.empty());
+	_expectations.back().second = std::move(output);
+
+	return *this;
+}
+
+void telnet::serve_client(client cl)
+{
+	ssize_t bytes = 0;
+	do
+	{
+		bytes = cl.read(&_buffer[0], _buffer.size());
+		assert(bytes >= 0);
+	
+		_input.insert(_input.end(), &_buffer[0], &_buffer[0] + bytes); 
+	}
+	while (bytes > 0); // zero value mark end of stream
+}
+
+telnet::telnet()
+{
+	_buffer.reserve(1024);
 }
 
 } // namespace nemok

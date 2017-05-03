@@ -4,6 +4,9 @@
 #include <atomic>
 #include <stdexcept>
 #include <future>
+#include <list>
+#include <vector>
+#include <memory>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -85,8 +88,8 @@ public:
 	void connect(port_t port);
 
 	void close();
-	size_t read(void* buffer, size_t length);
-	size_t write(const void* buffer, size_t length);
+	ssize_t read(void* buffer, size_t length);
+	ssize_t write(const void* buffer, size_t length);
 	bool connected() const;
 
 	void write_all(const void* buffer, size_t length);
@@ -106,6 +109,9 @@ public:
 
 	server();
 	virtual ~server();
+
+	server(server&) = delete;
+	server& operator =(server&) = delete;
 
 	// if zero is passed, we will pick the next free port automatically
 	// the function exits once the server is ready to accept connections
@@ -139,10 +145,59 @@ std::string read_string_from_client(client& cl, size_t len);
 
 
 // echo server
-class echo_server : public server
+class echo : public server
 {
 private:
 	virtual void serve_client(client c);
 };
+
+class telnet : public server
+{
+public:
+	telnet();
+
+	telnet& when(std::string input);
+	telnet& reply(std::string output);
+
+private:
+	virtual void serve_client(client c);
+
+	using expectation = std::pair<std::string, std::string>;
+	using expect_list = std::list<expectation>;
+
+	expect_list _expectations;
+	std::vector<uint8_t> _input;
+	std::vector<uint8_t> _buffer;
+};
+
+template <typename T>
+class mock
+{
+public:
+	mock()
+	{
+		t = std::make_shared<T>();
+		t->start();
+	}
+
+	~mock()
+	{
+		t->stop();
+	}
+
+	client connect_client()
+	{
+		return connect_client(*t);
+	}
+
+private:
+	std::unique_ptr<T> t;
+};
+
+template <typename T>
+mock<T> start()
+{
+	return std::move(mock<T>());
+}
 
 } // namespace nemok

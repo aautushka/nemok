@@ -59,7 +59,7 @@ void client::connect(port_t port)
 	}
 }
 
-size_t client::read(void* buffer, size_t length)
+ssize_t client::read(void* buffer, size_t length)
 {
 	assert(connected());
 
@@ -79,7 +79,7 @@ size_t client::read(void* buffer, size_t length)
 	return bytes;
 }
 
-size_t client::write(const void* buffer, size_t length)
+ssize_t client::write(const void* buffer, size_t length)
 {
 	assert(connected());
 	ssize_t bytes = -1;
