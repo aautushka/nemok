@@ -206,7 +206,7 @@ void echo_server::serve_client(client c)
 {
 	std::vector<uint8_t> buffer(1024);
 	size_t bytes_received = 0;
-	while (bytes_received = c.read(&buffer[0], buffer.size()))
+	while (bytes_received == c.read(&buffer[0], buffer.size()))
 	{
 		c.write(&buffer[0], bytes_received);
 	}

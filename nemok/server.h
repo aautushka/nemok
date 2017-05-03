@@ -89,6 +89,9 @@ public:
 	size_t write(const void* buffer, size_t length);
 	bool connected() const;
 
+	void write_all(const void* buffer, size_t length);
+	void read_all(void* buffer, size_t length);
+
 	void assign(int df);
 
 private:
@@ -132,6 +135,7 @@ private:
 
 client connect_client(const server& server);
 std::string read_string_from_client(client& cl, size_t len);
+
 
 // echo server
 class echo_server : public server

@@ -8,11 +8,8 @@ private:
 	virtual void serve_client(nemok::client c)
 	{
 		std::vector<uint8_t> buffer(N);
-		size_t received = c.read(&buffer[0], N);
-		assert(received == N);
-
-		size_t sent = c.write(&buffer[0], N);
-		assert(sent == N);
+		c.read_all(&buffer[0], N);
+		c.write_all(&buffer[0], N);
 	}
 };
 
