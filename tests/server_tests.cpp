@@ -55,3 +55,15 @@ TEST_F(server_test, handles_multiple_connections)
 	EXPECT_EQ("hello world", nemok::read_string_from_client(client, 11));
 	EXPECT_EQ("hola mundo!", nemok::read_string_from_client(client2, 11));
 }
+
+TEST_F(server_test, restarts_server)
+{
+	start();
+	client.write("hello world", 11);
+	stop();
+
+	start();
+	client.write("hola mundo!", 11);
+
+	EXPECT_EQ("hola mundo!", nemok::read_string_from_client(client, 11));
+}

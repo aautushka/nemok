@@ -16,6 +16,7 @@ namespace nemok
 {
 server::server()
 	: _server_port(0)
+	, _effective_port(0)
 	, _server_running(false)
 	, _terminate_server_flag(false)
 {
@@ -34,6 +35,7 @@ server::port_t server::start(port_t port)
 	}
 
 	_terminate_server_flag = false;
+	_server_port = port;
 
 	std::promise<void> server_ready;
 	std::future<void> ready_future = server_ready.get_future();
@@ -41,6 +43,8 @@ server::port_t server::start(port_t port)
 	_server_thread = std::thread([&](auto p){this->run_server(std::move(p));}, std::move(server_ready));
 	ready_future.wait();
 	_server_running = true;
+
+	return _effective_port;
 }
 
 void server::stop()
@@ -60,7 +64,7 @@ bool server::running() const
 
 server::port_t server::port() const
 {
-	return _server_port;
+	return _effective_port ;
 }
 
 int server::open_connections()
@@ -169,7 +173,7 @@ void server::bind_server_socket(int sock)
 		throw network_error();
 	}
 
-	_server_port = ntohs(addr.sin_port); 
+	_effective_port = ntohs(addr.sin_port); 
 }
 
 void server::accept_connections(int sock, std::function<void(int)> handler)

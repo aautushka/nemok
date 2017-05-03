@@ -128,7 +128,8 @@ private:
 	void set_socket_opts(int sock);
 
 	std::thread _server_thread;
-	std::atomic<port_t> _server_port;
+	port_t _server_port;
+	std::atomic<port_t> _effective_port;
 	std::atomic<bool> _terminate_server_flag;
 	bool _server_running;
 };
