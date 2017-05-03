@@ -2,6 +2,8 @@
 
 #include <thread>
 #include <atomic>
+#include <stdexcept>
+#include <future>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -16,6 +18,10 @@
 	mock.when(request("GET /")).crawl(200ms);
 	mock.when(unexpected()).reply("500 Error");
 	mock.when(unexpected()).crash();
+	mock.when(GET).reply("200 OK");
+	mock.when(GET).reply(200_ok);
+	mock.when(GET("/").reply(200);
+	mock.when(POST).reply(500);
 
 	mock.expect(request("GET /").reply("200 OK");
 	
@@ -32,15 +38,68 @@
 	auto mock = nemok::trace<nemok::http>();
 	auto mock = nemok::start<nemok::https>();
 	auto mock = nemok::start<nemok::nats>();
+	auto mock = nemok::start<nemok::memcached>();
 */
 
 namespace nemok
 {
+
+class exception : public std::exception
+{
+};
+
+class network_error : public exception
+{
+};
+
+class already_running : public exception
+{
+};
+
+class server_is_down : public exception
+{
+};
+
+class already_connected : public exception
+{
+};
+
+class not_connected : public exception
+{
+};
+
+// a very simple tcp/ip client
+class client
+{
+public:
+	using port_t = uint16_t;
+
+	client();
+	~client();
+	client(const client&) = delete;
+	client& operator =(const client&) = delete;
+
+	client(client&& rhs);
+	client& operator =(client&& rhs);
+
+	void connect(port_t port);
+
+	void close();
+	size_t read(void* buffer, size_t length);
+	size_t write(const void* buffer, size_t length);
+	bool connected() const;
+
+	void assign(int df);
+
+private:
+	int _sock;
+};
+
 // a primitive tcp/ip server
 class server
 {
 public:
-	using port_t = unsigned short;
+	using port_t = uint16_t;
 
 	server();
 	virtual ~server();
@@ -53,23 +112,29 @@ public:
 	// the server may be restarted as many times as needed
 	void stop();
 
-	bool running();
+	bool running() const;
 	port_t port() const;
 	int open_connections();
 
-protected:
-
 private:
-	void run_server();
+	void run_server(std::promise<void> ready);
+	void run_client(int sock);
+	virtual void serve_client(client c) = 0;
 
 	std::thread _server_thread;
-	std::atomic<bool> _server_running;
+	std::atomic<port_t> _server_port;
+	std::atomic<bool> _terminate_server_flag;
+	bool _server_running;
 };
 
-// http server
-class http : public server
+client connect_client(const server& server);
+std::string read_string_from_client(client& cl, size_t len);
+
+// echo server
+class echo_server : public server
 {
-public:
+private:
+	virtual void serve_client(client c);
 };
 
 } // namespace nemok

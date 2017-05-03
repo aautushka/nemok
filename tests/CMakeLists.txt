@@ -4,7 +4,7 @@ enable_testing()
 include_directories (..)
 
 set(SRC 
-	tests
+  server_tests
 )
 
 add_executable(tests ${SRC})
