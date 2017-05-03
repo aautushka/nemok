@@ -69,7 +69,7 @@ size_t client::read(void* buffer, size_t length)
 	{
 		bytes = ::read(_sock, buffer, length);
 	}
-	while (bytes == -1 && errno == EINTR);
+	while (bytes == -1 && (errno == EINTR || errno == EAGAIN));
 
 	if (bytes == -1)
 	{
@@ -87,7 +87,7 @@ size_t client::write(const void* buffer, size_t length)
 	{
 		bytes = ::write(_sock, buffer, length);
 	}
-	while (bytes == -1 && errno == EINTR);
+	while (bytes == -1 && (errno == EINTR || errno == EAGAIN));
 
 	if (bytes == -1)
 	{
@@ -123,7 +123,6 @@ void client::write_all(const void* buffer, size_t len)
 	while (written != len)
 	{
 		written += write(buf + written, len - written);
-		std::cout << "written " << written << std::endl;
 	}
 }
 
@@ -134,7 +133,6 @@ void client::read_all(void* buffer, size_t len)
 	while (bytes_read != len)
 	{
 		bytes_read += read(buf + bytes_read, len - bytes_read);
-		std::cout << "read " << bytes_read << std::endl;
 	}
 }
 
