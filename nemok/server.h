@@ -49,26 +49,43 @@ namespace nemok
 
 class exception : public std::exception
 {
+public:
+	exception() : _message("") {} 
+	explicit exception(const char* message) : _message(message) {}
+	virtual const char* what() const noexcept { return _message; }
+private:
+	const char* _message;
 };
 
 class network_error : public exception
 {
+public:
+	network_error() : exception("network error") {}
+	explicit network_error(const char* message) : exception(message) {}
 };
 
 class already_running : public exception
 {
+public:
+	already_running() : exception("server already running") {}
 };
 
 class server_is_down : public exception
 {
+public:
+	server_is_down() : exception("server is down") {}
 };
 
 class already_connected : public exception
 {
+public:
+	already_connected() : exception("client is already connected") {}
 };
 
 class not_connected : public exception
 {
+public:
+	not_connected() : exception("client is not connected") {}
 };
 
 // a very simple tcp/ip client
@@ -86,8 +103,9 @@ public:
 	client& operator =(client&& rhs);
 
 	void connect(port_t port);
+	void disconnect();
+	void assign(int df);
 
-	void close();
 	ssize_t read(void* buffer, size_t length);
 	ssize_t write(const void* buffer, size_t length);
 	bool connected() const;
@@ -95,10 +113,8 @@ public:
 	void write_all(const void* buffer, size_t length);
 	void read_all(void* buffer, size_t length);
 
-	void assign(int df);
-
 private:
-	int _sock;
+	int _sock = -1;
 };
 
 // a primitive tcp/ip server

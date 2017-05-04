@@ -21,10 +21,10 @@ client::client()
 
 client::~client()
 {
-	close();
+	disconnect();
 }
 
-void client::close()
+void client::disconnect()
 {
 	if (-1 != _sock)
 	{
@@ -45,7 +45,7 @@ void client::connect(port_t port)
 	_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sock == -1)
 	{
-		throw network_error();
+		throw network_error("can't create a socket");
 	}
 
 	struct sockaddr_in addr;
@@ -56,7 +56,7 @@ void client::connect(port_t port)
 
 	if (-1 == ::connect(_sock, (sockaddr*)&addr, sizeof(addr)))
 	{
-		throw network_error();
+		throw network_error("can't connect a socket");
 	}
 }
 
@@ -74,7 +74,7 @@ ssize_t client::read(void* buffer, size_t length)
 
 	if (bytes == -1)
 	{
-		throw network_error();
+		throw network_error("can't read from a socket");
 	}
 
 	return bytes;
@@ -92,7 +92,7 @@ ssize_t client::write(const void* buffer, size_t length)
 
 	if (bytes == -1)
 	{
-		throw network_error();
+		throw network_error("can't write to a socket");
 	}
 
 	return bytes;
@@ -106,7 +106,7 @@ client::client(client&& rhs)
 client& client::operator =(client&& rhs)
 {
 	std::swap(_sock, rhs._sock);
-	rhs.close();
+	rhs.disconnect();
 	return *this;
 }
 

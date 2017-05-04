@@ -126,22 +126,22 @@ void server::run_server(std::promise<void> ready)
 {
 	try
 	{
-		client_pool clients;
-
 		int s = socket(AF_INET, SOCK_STREAM, 0);
-		before_leaving close_socket([=](){close(s);});
 
 		if (s == -1)
 		{
-			throw network_error();
+			throw network_error("can't create a socket");
 		}
+
+		before_leaving close_socket([=](){close(s);});
+		client_pool clients;
 
 		set_socket_opts(s);
 		bind_server_socket(s);
 
 		if (-1 == listen(s, 5))
 		{
-			throw network_error();
+			throw network_error("can't listen on a socket");
 		}
 
 		fcntl(s, F_SETFL, O_NDELAY);
@@ -182,13 +182,13 @@ void server::bind_server_socket(int sock)
 	
 	if (-1 == bind(sock, (struct sockaddr*)&addr, sizeof(addr)))
 	{
-		throw network_error();
+		throw network_error("can't bind a socket");
 	}
 
 	socklen_t socklen = sizeof(addr);
 	if (-1 == getsockname(sock, (sockaddr*)&addr, &socklen))
 	{
-		throw network_error();
+		throw network_error("can't get socket address");
 	}
 
 	_effective_port = ntohs(addr.sin_port); 
@@ -207,7 +207,14 @@ void server::accept_connections(int server_socket, std::function<void(int)> hand
 			continue;
 		}
 
-		handler(client_socket);
+		if (client_socket != -1)
+		{
+			handler(client_socket);
+		}
+		else
+		{
+			std::cout << "accept error " << errno << std::endl;
+		}
 	}
 }
 
