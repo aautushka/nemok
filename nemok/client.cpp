@@ -5,6 +5,7 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 #include <strings.h>
+#include <poll.h>
 #include <cassert>
 
 #include <iostream>
@@ -65,9 +66,21 @@ ssize_t client::read(void* buffer, size_t length)
 	assert(connected());
 
 	ssize_t bytes = -1;
+	pollfd poll_data;
+	poll_data.fd = _sock;
+	poll_data.events = POLLIN;
 
 	do
 	{
+		switch (poll(&poll_data, 1, 100))
+		{
+			case 0: // timeout
+				continue;
+			case -1: // error
+				throw network_error("can't poll a socket");
+			default: // data ready
+			       break;	
+		}
 		bytes = ::read(_sock, buffer, length);
 	}
 	while (bytes == -1 && (errno == EINTR || errno == EAGAIN));
