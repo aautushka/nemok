@@ -24,6 +24,7 @@ struct server_test : public ::testing::Test
 	void stop()
 	{
 		server.stop();
+		server.wait();
 	}
 	
 	~server_test()
@@ -40,7 +41,17 @@ TEST_F(server_test, communicates_with_echo_server)
 	start();
 	client.write("hello world", 11);
 
-	EXPECT_EQ("hello world", nemok::read_string_from_client(client, 11));
+	EXPECT_EQ("hello world", nemok::read_all(client, 11));
+}
+
+TEST_F(server_test, starts_server_using_the_mock_object)
+{
+	auto mock = nemok::start<one_shot_echo<11>>();
+	auto client = mock.connect();
+	
+	client.write("hello world", 11);
+
+	EXPECT_EQ("hello world", nemok::read_all(client, 11));
 }
 
 TEST_F(server_test, handles_multiple_connections)
@@ -52,11 +63,11 @@ TEST_F(server_test, handles_multiple_connections)
 	client.write("hello world", 11);
 	client2.write("hola mundo!", 11);
 
-	EXPECT_EQ("hello world", nemok::read_string_from_client(client, 11));
-	EXPECT_EQ("hola mundo!", nemok::read_string_from_client(client2, 11));
+	EXPECT_EQ("hello world", nemok::read_all(client, 11));
+	EXPECT_EQ("hola mundo!", nemok::read_all(client2, 11));
 }
 
-TEST_F(server_test, restarts_server)
+TEST_F(server_test, talks_to_server_after_restart)
 {
 	start();
 	client.write("hello world", 11);
@@ -65,5 +76,5 @@ TEST_F(server_test, restarts_server)
 	start();
 	client.write("hola mundo!", 11);
 
-	EXPECT_EQ("hola mundo!", nemok::read_string_from_client(client, 11));
+	EXPECT_EQ("hola mundo!", nemok::read_all(client, 11));
 }

@@ -120,6 +120,7 @@ public:
 	// close existing connections, stop accepting new ones
 	// the server may be restarted as many times as needed
 	void stop();
+	void wait();
 
 	bool running() const;
 	port_t port() const;
@@ -137,11 +138,12 @@ private:
 	port_t _server_port;
 	std::atomic<port_t> _effective_port;
 	std::atomic<bool> _terminate_server_flag;
-	bool _server_running;
+	std::atomic<bool> _server_running;
 };
 
 client connect_client(const server& server);
-std::string read_string_from_client(client& cl, size_t len);
+std::string read_all(client& cl, size_t len);
+std::string read_some(client& cl, size_t len);
 
 
 // echo server
@@ -158,11 +160,13 @@ public:
 
 	telnet& when(std::string input);
 	telnet& reply(std::string output);
+	telnet& shutdown();
 
 private:
 	virtual void serve_client(client c);
 
-	using expectation = std::pair<std::string, std::string>;
+	using action = std::function<void(client&)>;
+	using expectation = std::pair<std::string, action>;
 	using expect_list = std::list<expectation>;
 
 	expect_list _expectations;
@@ -176,18 +180,46 @@ class mock
 public:
 	mock()
 	{
-		t = std::make_shared<T>();
+		t.reset(new T);
 		t->start();
 	}
 
 	~mock()
 	{
-		t->stop();
+		if (t)
+		{
+			t->stop();
+			t->wait();
+		}
 	}
 
-	client connect_client()
+	mock(mock& rhs) = delete;
+	mock& operator =(mock& rhs) = delete;
+
+	mock(mock&& rhs)
+	{
+		*this = std::move(rhs);
+	}
+
+	mock& operator =(mock&& rhs) 
+	{
+		t = std::move(rhs.t);
+		return *this;
+	}
+
+	client connect()
 	{
 		return connect_client(*t);
+	}
+
+	T& when(std::string input)
+	{
+		return t->when(input);
+	}
+
+	T& reply(std::string output)
+	{
+		return t->reply(output);
 	}
 
 private:

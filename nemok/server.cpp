@@ -10,6 +10,7 @@
 #include <thread>
 #include <iostream>
 #include <cassert>
+#include <cstring>
 
 #include "server.h"
 
@@ -50,11 +51,20 @@ server::port_t server::start(port_t port)
 
 void server::stop()
 {
+	// TODO: this method may be called from different threads
+	// need to make it thread-safe
 	if (_server_running)
 	{
 		_terminate_server_flag = true;
+	}
+}
+
+void server::wait()
+{
+	if (_server_thread.joinable())
+	{
 		_server_thread.join();
-		_server_running = false;
+		_server_thread = std::thread();
 	}
 }
 
@@ -101,6 +111,9 @@ public:
 	{
 	}
 
+	before_leaving(before_leaving&) = delete;
+	before_leaving& operator =(before_leaving&) = delete;
+
 	~before_leaving()
 	{
 		_func();
@@ -135,14 +148,18 @@ void server::run_server(std::promise<void> ready)
 
 		ready.set_value();
 
-		accept_connections(s, [&](int s){
+		accept_connections(s, [&](int client_socket){
 			clients.add_client([=](){
-				this->run_client(s);});});
+				this->run_client(client_socket);});});
 	}
 	catch (std::exception&)
 	{
 		ready.set_exception(std::current_exception());
 	}
+
+	_server_running = false;
+	_terminate_server_flag = false;
+	_effective_port = 0;
 }
 
 void server::set_socket_opts(int sock)
@@ -177,20 +194,20 @@ void server::bind_server_socket(int sock)
 	_effective_port = ntohs(addr.sin_port); 
 }
 
-void server::accept_connections(int sock, std::function<void(int)> handler)
+void server::accept_connections(int server_socket, std::function<void(int)> handler)
 {
 	while (!_terminate_server_flag)
 	{
 		sockaddr_in client_addr;
 		socklen_t size = sizeof(client_addr);
-		int client = accept(sock, (sockaddr*)&client_addr, &size);
-		if (client == -1 && errno == EWOULDBLOCK) 
+		int client_socket = accept(server_socket, (sockaddr*)&client_addr, &size);
+		if (client_socket == -1 && errno == EWOULDBLOCK) 
 		{
 			::usleep(1);
 			continue;
 		}
 
-		handler(client);
+		handler(client_socket);
 	}
 }
 
@@ -224,7 +241,7 @@ client connect_client(const server& server)
 	return std::move(ret);
 }
 
-std::string read_string_from_client(client& cl, size_t len)
+std::string read_some(client& cl, size_t len)
 {
 	std::string ret;
 	if (len > 0)
@@ -236,9 +253,20 @@ std::string read_string_from_client(client& cl, size_t len)
 	return std::move(ret); 
 }
 
+std::string read_all(client& cl, size_t len)
+{
+	std::string ret;
+	if (len > 0)
+	{
+		ret.resize(len);
+		cl.read_all(&ret[0], ret.size());
+	}
+	return std::move(ret); 
+}
+
 telnet& telnet::when(std::string input)
 {
-	auto e = std::make_pair(std::move(input), std::string());
+	auto e = std::make_pair(std::move(input), [](client&){}); 
 	_expectations.emplace_back(std::move(e));
 
 	return *this;
@@ -247,9 +275,16 @@ telnet& telnet::when(std::string input)
 telnet& telnet::reply(std::string output)
 {
 	assert(!_expectations.empty());
-	_expectations.back().second = std::move(output);
+	
+	_expectations.back().second = [=](client& c){c.write(output.c_str(), output.size());};
 
 	return *this;
+}
+
+template <typename T, typename V>
+bool starts_with(const T& str, const V& test)
+{
+	return str.size() >= test.size() && 0 == memcmp(&str[0], &test[0], test.size());
 }
 
 void telnet::serve_client(client cl)
@@ -260,14 +295,38 @@ void telnet::serve_client(client cl)
 		bytes = cl.read(&_buffer[0], _buffer.size());
 		assert(bytes >= 0);
 	
-		_input.insert(_input.end(), &_buffer[0], &_buffer[0] + bytes); 
+		if (bytes > 0)
+		{
+			_input.insert(_input.end(), &_buffer[0], &_buffer[0] + bytes); 
+
+			auto i = _expectations.begin();
+			while (i != _expectations.end())
+			{
+				if (starts_with(_input, i->first))
+				{
+					_input.erase(std::begin(_input), std::begin(_input) + i->first.size());
+					i->second(cl);
+
+					i = _expectations.begin();
+					continue;
+				}
+				++i;
+			}
+		}
 	}
 	while (bytes > 0); // zero value mark end of stream
 }
 
 telnet::telnet()
 {
-	_buffer.reserve(1024);
+	_buffer.resize(1024);
+}
+
+telnet& telnet::shutdown()
+{
+	assert(!_expectations.empty());
+	_expectations.back().second = [=](auto&){this->stop();};
+	return *this;
 }
 
 } // namespace nemok

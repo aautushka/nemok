@@ -29,6 +29,7 @@ void client::close()
 	if (-1 != _sock)
 	{
 		::close(_sock);
+		_sock = -1;
 	}
 }
 
@@ -124,6 +125,7 @@ void client::write_all(const void* buffer, size_t len)
 	{
 		written += write(buf + written, len - written);
 	}
+
 }
 
 void client::read_all(void* buffer, size_t len)
