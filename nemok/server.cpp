@@ -331,9 +331,16 @@ void telnet::serve_client(client& cl)
 					_input.erase(std::begin(_input), std::begin(_input) + e->trigger.size());
 					e->fire(cl);
 
-					expectation temp = std::move(*e);
-					_expect.erase(e);
-					_expect.emplace_back(std::move(temp));	
+					if (!e->active())
+					{
+						_expect.erase(e);
+					}
+					else
+					{
+						expectation temp = std::move(*e);
+						_expect.erase(e);
+						_expect.emplace_back(std::move(temp));	
+					}
 
 					e = _expect.begin();
 					continue;
@@ -352,7 +359,7 @@ telnet::telnet()
 
 void telnet::add_action(action::func_type f)
 {
-	_expect.back().act.add(std::move(f));
+	current().act.add(std::move(f));
 }
 
 telnet& telnet::shutdown()
@@ -367,6 +374,22 @@ telnet& telnet::freeze(useconds_t usec)
 	assert(!_expect.empty());
 	add_action([=](auto&){::usleep(usec);});
 	return *this;
+}
+
+telnet& telnet::once()
+{
+	current().max_calls = 1;
+}
+
+telnet& telnet::reply_once(std::string output)
+{
+	return reply(std::move(output)).once();
+}
+
+expectation& telnet::current()
+{
+	assert(!_expect.empty());
+	return _expect.back();
 }
 
 void action::add(func_type func)

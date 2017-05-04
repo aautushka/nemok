@@ -187,10 +187,17 @@ struct expectation
 	std::string trigger;
 	action act;
 	int times_fired = 0;
+	int max_calls = std::numeric_limits<int>::max();
 
 	void fire(client& cl)
 	{
 		act.fire(cl);
+		times_fired += 1;
+	}
+
+	bool active() const
+	{
+		return times_fired < max_calls;
 	}
 };
 
@@ -203,10 +210,13 @@ public:
 	telnet& reply(std::string output);
 	telnet& shutdown();
 	telnet& freeze(useconds_t usec);
+	telnet& once();
+	telnet& reply_once(std::string output);
 
 private:
 	virtual void serve_client(client& c);
 	void add_action(action::func_type f);
+	expectation& current();
 
 	using expect_list = std::list<expectation>;
 

@@ -102,3 +102,27 @@ TEST_F(telnet_mock_test, fires_previously_unmatches_expectation)
 	EXPECT_EQ("hola!hels!", nemok::read_all(client, 10));
 }
 
+TEST_F(telnet_mock_test, fires_expectations_in_predictable_order)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("hello").reply("+");
+	mock.when("hello").reply("-");
+	
+	auto client = mock.connect();
+	client.write("hellohellohellohello", 20);
+
+	EXPECT_EQ("+-+-", nemok::read_all(client, 4));
+}
+
+TEST_F(telnet_mock_test, excludes_once_matched_expectation)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("hello").reply_once("+");
+	mock.when("hello").reply("-");
+	
+	auto client = mock.connect();
+	client.write("hellohellohellohello", 20);
+
+	EXPECT_EQ("+---", nemok::read_all(client, 4));
+}
+
