@@ -16,7 +16,7 @@
 	mock.when(content("hello world")).reply("200 OK");
 	mock.when(request().with_content("hello world").reply("200 OK"));
 	mock.when(request("GET /")).hang();
-	mock.when(request("GET /")).crash();
+	mock.when(request("GET /")).shutdown();
 	mock.when(request("GET /")).close_connection();
 	mock.when(request("GET /")).crawl(200ms);
 	mock.when(unexpected()).reply("500 Error");
@@ -60,8 +60,11 @@ private:
 class network_error : public exception
 {
 public:
-	network_error() : exception("network error") {}
-	explicit network_error(const char* message) : exception(message) {}
+	network_error() : exception("network error"), _errno(errno) {}
+	explicit network_error(const char* message) : exception(message), _errno(errno) {}
+
+private:
+	int _errno;
 };
 
 class already_running : public exception
@@ -104,6 +107,7 @@ public:
 
 	void connect(port_t port);
 	void disconnect();
+	void shutdown();
 	void assign(int df);
 
 	ssize_t read(void* buffer, size_t length);
@@ -144,8 +148,8 @@ public:
 
 private:
 	void run_server(std::promise<void> ready);
-	void run_client(int sock);
-	virtual void serve_client(client c) = 0;
+	void run_client(client& s);
+	virtual void serve_client(client& c) = 0;
 	void accept_connections(int sock, std::function<void(int)> handler);
 	void bind_server_socket(int sock);
 	void set_socket_opts(int sock);
@@ -166,7 +170,17 @@ std::string read_some(client& cl, size_t len);
 class echo : public server
 {
 private:
-	virtual void serve_client(client c);
+	virtual void serve_client(client& c);
+};
+
+class action
+{
+public:
+	using func_type = std::function<void(client&)>;
+	void add(func_type func);
+	void fire(client& cl);
+private:
+	std::list<func_type> _list;
 };
 
 class telnet : public server
@@ -177,11 +191,12 @@ public:
 	telnet& when(std::string input);
 	telnet& reply(std::string output);
 	telnet& shutdown();
+	telnet& freeze(useconds_t usec);
 
 private:
-	virtual void serve_client(client c);
+	virtual void serve_client(client& c);
+	void add_action(action::func_type f);
 
-	using action = std::function<void(client&)>;
 	using expectation = std::pair<std::string, action>;
 	using expect_list = std::list<expectation>;
 
@@ -231,11 +246,6 @@ public:
 	T& when(std::string input)
 	{
 		return t->when(input);
-	}
-
-	T& reply(std::string output)
-	{
-		return t->reply(output);
 	}
 
 private:

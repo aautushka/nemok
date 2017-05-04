@@ -86,21 +86,34 @@ int server::open_connections()
 class client_pool
 {
 public:
-	void add_client(std::function<void(void)> handler)
+	using handler = std::function<void(client&)>;
+
+	void add_client(client c, handler h)
 	{
-		_threads.emplace_back(handler);
+		_threads.emplace_back(std::make_pair(std::move(c), std::thread()));
+		_threads.back().second = std::thread(std::bind(h, std::ref(_threads.back().first)));
 	}
 
 	~client_pool()
 	{
 		for (auto& t : _threads)
 		{
-			t.join();
+			auto& cl = t.first;
+			auto& tr = t.second;
+			if (tr.joinable())
+			{
+				// TODO: this is not thread safe
+				// could cause the client talk to another fd
+				// race condition! 
+				cl.shutdown();
+				tr.join();
+			}
 		}
 	}
 
 private:
-	std::vector<std::thread> _threads;
+	using pair = std::pair<client, std::thread>; 
+	std::list<pair> _threads;
 };
 
 class before_leaving
@@ -133,7 +146,7 @@ void server::run_server(std::promise<void> ready)
 			throw network_error("can't create a socket");
 		}
 
-		before_leaving close_socket([=](){close(s);});
+		before_leaving close_socket([=](){::shutdown(s, SHUT_RDWR); ::close(s);});
 		client_pool clients;
 
 		set_socket_opts(s);
@@ -148,9 +161,14 @@ void server::run_server(std::promise<void> ready)
 
 		ready.set_value();
 
-		accept_connections(s, [&](int client_socket){
-			clients.add_client([=](){
-				this->run_client(client_socket);});});
+		accept_connections(s, [&](int client_socket)
+		{
+			client c;
+		       	c.assign(client_socket);
+
+			using namespace std::placeholders;
+			clients.add_client(std::move(c), std::bind(&server::run_client, this, _1));
+		});
 	}
 	catch (std::exception&)
 	{
@@ -218,20 +236,18 @@ void server::accept_connections(int server_socket, std::function<void(int)> hand
 	}
 }
 
-void server::run_client(int client_socket)
+void server::run_client(client& c)
 {
 	try
 	{
-		client c;
-		c.assign(client_socket);
-		serve_client(std::move(c));
+		serve_client(c);
 	}
 	catch (exception& e)
 	{
 	}
 }
 
-void echo::serve_client(client c)
+void echo::serve_client(client& c)
 {
 	std::vector<uint8_t> buffer(1024);
 	size_t bytes_received = 0;
@@ -273,7 +289,7 @@ std::string read_all(client& cl, size_t len)
 
 telnet& telnet::when(std::string input)
 {
-	auto e = std::make_pair(std::move(input), [](client&){}); 
+	auto e = std::make_pair(std::move(input), action()); 
 	_expectations.emplace_back(std::move(e));
 
 	return *this;
@@ -283,7 +299,7 @@ telnet& telnet::reply(std::string output)
 {
 	assert(!_expectations.empty());
 	
-	_expectations.back().second = [=](client& c){c.write(output.c_str(), output.size());};
+	add_action([=](auto& c){c.write(output.c_str(), output.size());});
 
 	return *this;
 }
@@ -294,7 +310,7 @@ bool starts_with(const T& str, const V& test)
 	return str.size() >= test.size() && 0 == memcmp(&str[0], &test[0], test.size());
 }
 
-void telnet::serve_client(client cl)
+void telnet::serve_client(client& cl)
 {
 	ssize_t bytes = 0;
 	do
@@ -312,7 +328,7 @@ void telnet::serve_client(client cl)
 				if (starts_with(_input, i->first))
 				{
 					_input.erase(std::begin(_input), std::begin(_input) + i->first.size());
-					i->second(cl);
+					i->second.fire(cl);
 
 					i = _expectations.begin();
 					continue;
@@ -329,12 +345,36 @@ telnet::telnet()
 	_buffer.resize(1024);
 }
 
+void telnet::add_action(action::func_type f)
+{
+	_expectations.back().second.add(std::move(f));
+}
+
 telnet& telnet::shutdown()
 {
 	assert(!_expectations.empty());
-	_expectations.back().second = [=](auto&){this->stop();};
+	add_action([=](auto&){this->stop();});
 	return *this;
 }
 
+telnet& telnet::freeze(useconds_t usec)
+{
+	assert(!_expectations.empty());
+	add_action([=](auto&){::usleep(usec);});
+	return *this;
+}
+
+void action::add(func_type func)
+{
+	_list.emplace_back(std::move(func));
+}
+
+void action::fire(client& cl)
+{
+	for (auto& f: _list)
+	{
+		f(cl);
+	}
+}
 } // namespace nemok
 

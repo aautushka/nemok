@@ -29,8 +29,17 @@ void client::disconnect()
 {
 	if (-1 != _sock)
 	{
+		shutdown();
 		::close(_sock);
 		_sock = -1;
+	}
+}
+
+void client::shutdown()
+{
+	if (-1 != _sock)
+	{
+		::shutdown(_sock, SHUT_RDWR);
 	}
 }
 
@@ -61,6 +70,23 @@ void client::connect(port_t port)
 	}
 }
 
+int wait_while_ready(pollfd& fd)
+{
+	while (true)
+	{
+		int ret = 0;
+		switch (ret = poll(&fd, 1, 100))
+		{
+			case 0: // timeout
+				break;
+			case -1: // error
+				throw network_error("can't poll a socket");
+			default: // data ready
+				return ret;
+		}
+	}
+}
+
 ssize_t client::read(void* buffer, size_t length)
 {
 	assert(connected());
@@ -68,20 +94,22 @@ ssize_t client::read(void* buffer, size_t length)
 	ssize_t bytes = -1;
 	pollfd poll_data;
 	poll_data.fd = _sock;
-	poll_data.events = POLLIN;
+	poll_data.events = POLLIN | POLLERR | POLLHUP;
 
 	do
 	{
-		switch (poll(&poll_data, 1, 100))
+		if (POLLIN == wait_while_ready(poll_data))
 		{
-			case 0: // timeout
-				continue;
-			case -1: // error
-				throw network_error("can't poll a socket");
-			default: // data ready
-			       break;	
+			bytes = ::read(_sock, buffer, length);
+			if (0 == bytes)
+			{
+				break;
+			}
 		}
-		bytes = ::read(_sock, buffer, length);
+		else
+		{
+			break;
+		}
 	}
 	while (bytes == -1 && (errno == EINTR || errno == EAGAIN));
 
@@ -147,7 +175,15 @@ void client::read_all(void* buffer, size_t len)
 	size_t bytes_read = 0;
 	while (bytes_read != len)
 	{
-		bytes_read += read(buf + bytes_read, len - bytes_read);
+		ssize_t ret = read(buf + bytes_read, len - bytes_read); 
+		if (ret > 0)
+		{
+			bytes_read += ret;
+		}
+		else // can't read any more, perhaps the socket was closed
+		{
+			throw network_error();
+		}
 	}
 }
 

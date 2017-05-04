@@ -5,7 +5,7 @@ template <int N>
 class one_shot_echo : public nemok::server
 {
 private:
-	virtual void serve_client(nemok::client c)
+	virtual void serve_client(nemok::client& c)
 	{
 		std::vector<uint8_t> buffer(N);
 		c.read_all(&buffer[0], N);
