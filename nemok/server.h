@@ -15,10 +15,9 @@
 	mock.when(request("POST /").reply("200 OK);
 	mock.when(content("hello world")).reply("200 OK");
 	mock.when(request().with_content("hello world").reply("200 OK"));
-	mock.when(request("GET /")).hang();
+	mock.when(request("GET /")).freeze();
 	mock.when(request("GET /")).shutdown();
 	mock.when(request("GET /")).close_connection();
-	mock.when(request("GET /")).crawl(200ms);
 	mock.when(unexpected()).reply("500 Error");
 	mock.when(unexpected()).crash();
 	mock.when(GET).reply("200 OK");
@@ -183,6 +182,18 @@ private:
 	std::list<func_type> _list;
 };
 
+struct expectation
+{
+	std::string trigger;
+	action act;
+	int times_fired = 0;
+
+	void fire(client& cl)
+	{
+		act.fire(cl);
+	}
+};
+
 class telnet : public server
 {
 public:
@@ -197,10 +208,9 @@ private:
 	virtual void serve_client(client& c);
 	void add_action(action::func_type f);
 
-	using expectation = std::pair<std::string, action>;
 	using expect_list = std::list<expectation>;
 
-	expect_list _expectations;
+	expect_list _expect;
 	std::vector<uint8_t> _input;
 	std::vector<uint8_t> _buffer;
 };

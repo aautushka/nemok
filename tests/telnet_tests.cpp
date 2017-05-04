@@ -89,3 +89,16 @@ TEST_F(telnet_mock_test, freezes_the_server)
 
 	EXPECT_GE(duration, std::chrono::microseconds(100000));
 }
+
+TEST_F(telnet_mock_test, fires_previously_unmatches_expectation)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("hello").reply("hola!");
+	mock.when("hello").reply("hels!");
+	
+	auto client = mock.connect();
+	client.write("hellohello", 10);
+
+	EXPECT_EQ("hola!hels!", nemok::read_all(client, 10));
+}
+

@@ -103,8 +103,7 @@ public:
 			if (tr.joinable())
 			{
 				// TODO: this is not thread safe
-				// could cause the client talk to another fd
-				// race condition! 
+				// may cause a race condition
 				cl.shutdown();
 				tr.join();
 			}
@@ -289,15 +288,17 @@ std::string read_all(client& cl, size_t len)
 
 telnet& telnet::when(std::string input)
 {
-	auto e = std::make_pair(std::move(input), action()); 
-	_expectations.emplace_back(std::move(e));
+	expectation e;
+	e.trigger = std::move(input);
+
+	_expect.emplace_back(std::move(e));
 
 	return *this;
 }
 
 telnet& telnet::reply(std::string output)
 {
-	assert(!_expectations.empty());
+	assert(!_expect.empty());
 	
 	add_action([=](auto& c){c.write(output.c_str(), output.size());});
 
@@ -322,18 +323,22 @@ void telnet::serve_client(client& cl)
 		{
 			_input.insert(_input.end(), &_buffer[0], &_buffer[0] + bytes); 
 
-			auto i = _expectations.begin();
-			while (i != _expectations.end())
+			auto e = _expect.begin();
+			while (e != _expect.end())
 			{
-				if (starts_with(_input, i->first))
+				if (starts_with(_input, e->trigger))
 				{
-					_input.erase(std::begin(_input), std::begin(_input) + i->first.size());
-					i->second.fire(cl);
+					_input.erase(std::begin(_input), std::begin(_input) + e->trigger.size());
+					e->fire(cl);
 
-					i = _expectations.begin();
+					expectation temp = std::move(*e);
+					_expect.erase(e);
+					_expect.emplace_back(std::move(temp));	
+
+					e = _expect.begin();
 					continue;
 				}
-				++i;
+				++e;
 			}
 		}
 	}
@@ -347,19 +352,19 @@ telnet::telnet()
 
 void telnet::add_action(action::func_type f)
 {
-	_expectations.back().second.add(std::move(f));
+	_expect.back().act.add(std::move(f));
 }
 
 telnet& telnet::shutdown()
 {
-	assert(!_expectations.empty());
+	assert(!_expect.empty());
 	add_action([=](auto&){this->stop();});
 	return *this;
 }
 
 telnet& telnet::freeze(useconds_t usec)
 {
-	assert(!_expectations.empty());
+	assert(!_expect.empty());
 	add_action([=](auto&){::usleep(usec);});
 	return *this;
 }
