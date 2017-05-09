@@ -21,7 +21,7 @@ TEST_F(telnet_mock_test, replies_to_a_request_according_to_specified_expectation
 	mock.when("hello world").reply("hola mundo");
 	
 	auto client = mock.connect();
-	client.write_all("hello world", 11);
+	client.write("hello world", 11);
 
 	EXPECT_EQ("hola mundo", nemok::read_all(client, 10));
 
@@ -33,7 +33,7 @@ TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_server_shut_d
 	mock.when("hello world").shutdown_server();
 	
 	auto client = mock.connect();
-	client.write_all("hello world", 11);
+	client.write("hello world", 11);
 
 	EXPECT_THROW(nemok::read_all(client, 10), nemok::network_error);
 
@@ -46,7 +46,7 @@ TEST_F(telnet_mock_test, fulfills_multiple_expectations)
 	mock.when("world").reply("mundo");
 	
 	auto client = mock.connect();
-	client.write_all("hello world", 11);
+	client.write("hello world", 11);
 
 	EXPECT_EQ("hola mundo", nemok::read_all(client, 10));
 }
@@ -58,7 +58,7 @@ TEST_F(telnet_mock_test, disregards_the_order)
 	mock.when("hello ").reply("hola ");
 	
 	auto client = mock.connect();
-	client.write_all("hello world", 11);
+	client.write("hello world", 11);
 
 	EXPECT_EQ("hola mundo", nemok::read_all(client, 10));
 }
@@ -69,7 +69,7 @@ TEST_F(telnet_mock_test, fires_same_expectation_multiple_times)
 	mock.when("hello").reply("hola");
 
 	auto client = mock.connect();
-	client.write_all("hellohello", 10);
+	client.write("hellohello", 10);
 
 	EXPECT_EQ("holahola", nemok::read_all(client, 8));
 }
@@ -83,7 +83,7 @@ TEST_F(telnet_mock_test, freezes_the_server)
 
 	auto duration= measure([&]()
 	{ 
-		client.write_all("hello", 5);
+		client.write("hello", 5);
 		nemok::read_all(client, 4);
 	});
 
@@ -97,7 +97,7 @@ TEST_F(telnet_mock_test, fires_previously_unmatches_expectation)
 	mock.when("hello").reply("hels!");
 	
 	auto client = mock.connect();
-	client.write_all("hellohello", 10);
+	client.write("hellohello", 10);
 
 	EXPECT_EQ("hola!hels!", nemok::read_all(client, 10));
 }
@@ -109,7 +109,7 @@ TEST_F(telnet_mock_test, fires_expectations_in_predictable_order)
 	mock.when("hello").reply("-");
 	
 	auto client = mock.connect();
-	client.write_all("hellohellohellohello", 20);
+	client.write("hellohellohellohello", 20);
 
 	EXPECT_EQ("+-+-", nemok::read_all(client, 4));
 }
@@ -121,7 +121,7 @@ TEST_F(telnet_mock_test, excludes_once_matched_expectation)
 	mock.when("hello").reply("-");
 	
 	auto client = mock.connect();
-	client.write_all("hellohellohellohello", 20);
+	client.write("hellohellohellohello", 20);
 
 	EXPECT_EQ("+---", nemok::read_all(client, 4));
 }
@@ -132,7 +132,7 @@ TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_connection_be
 	mock.when("hello world").close_connection();
 	
 	auto client = mock.connect();
-	client.write_all("hello world", 11);
+	client.write("hello world", 11);
 
 	EXPECT_THROW(nemok::read_all(client, 10), nemok::network_error);
 }
@@ -144,7 +144,7 @@ TEST_F(telnet_mock_test, calls_a_specific_expectation_the_exact_number_of_times)
 	mock.when("A").reply("-");
 	
 	auto client = mock.connect();
-	client.write_all("AAAAAA", 6);
+	client.write("AAAAAA", 6);
 
 	EXPECT_EQ("+-+---", nemok::read_all(client, 6));
 }
@@ -156,7 +156,7 @@ TEST_F(telnet_mock_test, the_lowest_order_expectation_never_fires)
 	mock.when("A").reply("-").order(2);
 	
 	auto client = mock.connect();
-	client.write_all("AAAAAA", 6);
+	client.write("AAAAAA", 6);
 
 	EXPECT_EQ("++++++", nemok::read_all(client, 6));
 }
@@ -169,7 +169,7 @@ TEST_F(telnet_mock_test, matches_any_line)
 	mock.when(any_line()).reply("done\n");
 	
 	auto client = mock.connect();
-	client.write_all("hello\nworld\n", 12);
+	client.write("hello\nworld\n", 12);
 
 	EXPECT_EQ("done\ndone\n", nemok::read_all(client, 10));
 }
@@ -182,7 +182,7 @@ TEST_F(telnet_mock_test, matches_regex)
 	mock.when("[a-z]+\n"_re).reply("done\n");
 	
 	auto client = mock.connect();
-	client.write_all("hello\nworld\n", 12);
+	client.write("hello\nworld\n", 12);
 
 	EXPECT_EQ("done\ndone\n", nemok::read_all(client, 10));
 }

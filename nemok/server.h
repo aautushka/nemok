@@ -58,6 +58,8 @@
 namespace nemok
 {
 
+using buffer_type = std::vector<uint8_t>;
+
 class exception : public std::exception
 {
 public:
@@ -218,10 +220,14 @@ public:
 
 	ssize_t read_some(void* buffer, size_t length);
 	ssize_t write_some(const void* buffer, size_t length);
+
 	bool connected() const;
 
 	void write_all(const void* buffer, size_t length);
 	void read_all(void* buffer, size_t length);
+
+	void write(const void* buffer, size_t len) { write_all(buffer, len); }
+	void read(void* buffer, size_t len) { read_all(buffer, len);}
 
 private:
 	int _sock = -1;
@@ -289,7 +295,6 @@ private:
 	std::list<func_type> _list;
 };
 
-using buffer_type = std::vector<uint8_t>;
 
 struct expectation
 {
