@@ -248,7 +248,7 @@ void server::run_client(client& c)
 
 void echo::serve_client(client& c)
 {
-	std::vector<uint8_t> buffer(1024);
+	buffer_type buffer(1024);
 	size_t bytes_received = 0;
 	while (bytes_received == c.read(&buffer[0], buffer.size()))
 	{
@@ -286,7 +286,7 @@ std::string read_all(client& cl, size_t len)
 	return std::move(ret); 
 }
 
-telnet& telnet::when(std::string input)
+telnet& telnet::when(trigger_type trigger)
 {
 	if (!_current.empty())
 	{
@@ -294,9 +294,14 @@ telnet& telnet::when(std::string input)
 	}
 
 	_current = expectation();
-	_current.trigger = std::move(input);
+	_current.trigger = std::move(trigger);
 
 	return *this;
+}
+
+telnet& telnet::when(std::string input)
+{
+	return when(starts_with(input));
 }
 
 telnet& telnet::reply(std::string output)
@@ -306,16 +311,10 @@ telnet& telnet::reply(std::string output)
 	return *this;
 }
 
-template <typename T, typename V>
-bool starts_with(const T& str, const V& test)
-{
-	return str.size() >= test.size() && 0 == memcmp(&str[0], &test[0], test.size());
-}
-
 void telnet::serve_client(client& cl)
 {
-	std::vector<uint8_t> input;
-	std::vector<uint8_t> buffer(1024);
+	buffer_type input;
+	buffer_type buffer(1024);
 
 	if (!_current.empty())
 	{
@@ -405,7 +404,7 @@ void action::fire(client& cl)
 	}
 }
 
-void expect_list::walk_stream(buffer& input, client& cl)
+void expect_list::walk_stream(buffer_type& input, client& cl)
 {
 	if (!input.empty())
 	{
@@ -415,9 +414,8 @@ void expect_list::walk_stream(buffer& input, client& cl)
 			auto e = l->second.begin();
 			while (e != l->second.end())
 			{
-				if (starts_with(input, e->trigger))
+				if (e->trigger(input))
 				{
-					input.erase(std::begin(input), std::begin(input) + e->trigger.size());
 					e->fire(cl);
 
 					if (!e->active())
@@ -451,6 +449,17 @@ expectation& expect_list::create(expectation&& e)
 	const int ord = e.order;
 	_data[ord].emplace_back(std::move(e));
 	return _data[ord].back();
+}
+
+bool starts_with::operator ()(buffer_type& input)
+{
+	if (input.size() >= _test.size() && 0 == memcmp(&input[0], &_test[0], _test.size()))
+	{
+		input.erase(std::begin(input), std::begin(input) + _test.size());
+		return true;
+	}
+
+	return false;
 }
 
 } // namespace nemok

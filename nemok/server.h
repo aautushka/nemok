@@ -42,6 +42,13 @@
 	auto mock = nemok::start<nemok::https>();
 	auto mock = nemok::start<nemok::nats>();
 	auto mock = nemok::start<nemok::memcached>();
+
+	auto mock = nemok::start<telnet>();
+	mock.expect("hello").reply("world");
+ 	mock.expect(line()).reply("done");
+	mock.expect(line("hello")).reply("done");
+	mock.expect(regex("[^\n]+\n")).reply("done");
+	mock.expect("[^\n]+\n"_re).reply("done");
 */
 
 namespace nemok
@@ -183,9 +190,13 @@ private:
 	std::list<func_type> _list;
 };
 
+using buffer_type = std::vector<uint8_t>;
+
 struct expectation
 {
-	std::string trigger;
+	using trigger_type = std::function<bool(buffer_type&)>;
+
+	trigger_type trigger;
 	action act;
 	int times_fired = 0;
 	int max_calls = std::numeric_limits<int>::max();
@@ -204,16 +215,15 @@ struct expectation
 
 	bool empty() const
 	{
-		return trigger.empty();
+		return !trigger; 
 	}
 };
 
 class expect_list
 {
 public:
-	using buffer = std::vector<uint8_t>;
 
-	void walk_stream(buffer& buf, client& cl);
+	void walk_stream(buffer_type& buf, client& cl);
 	bool empty() const;
 	expectation& create(expectation&& e);
 
@@ -223,12 +233,45 @@ private:
 	priority_list _data;
 };
 
+class line
+{
+public:
+	line& terminator(char ch) {_term = ch;}
+	line() { }
+	explicit line(std::string exact_line) : _line(exact_line) {}
+
+private:
+	char _term = '\n'; 
+	std::string _line;
+};
+
+class starts_with
+{
+public:
+	explicit starts_with(std::string test): _test(std::move(test)) {}
+	bool operator ()(buffer_type& input);
+
+private:
+	std::string _test;
+};
+
+class regex
+{
+public:
+	explicit regex(std::string expr) : _expr(expr) {}
+private:
+	std::string _expr;
+};
+
 class telnet : public server
 {
 public:
+	using trigger_type = expectation::trigger_type;
+
 	telnet();
 
 	telnet& when(std::string input);
+	telnet& when(trigger_type trigger);
 	telnet& reply(std::string output);
 	telnet& shutdown_server();
 	telnet& freeze(useconds_t usec);

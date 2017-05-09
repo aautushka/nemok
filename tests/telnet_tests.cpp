@@ -15,7 +15,7 @@ struct telnet_mock_test : public ::testing::Test
 	}
 };
 
-TEST_F(telnet_mock_test, communicates_with_echo_server)
+TEST_F(telnet_mock_test, replies_to_a_request_according_to_specified_expectation)
 {
 	auto mock = nemok::start<telnet>();
 	mock.when("hello world").reply("hola mundo");
