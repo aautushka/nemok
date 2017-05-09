@@ -27,10 +27,10 @@ TEST_F(telnet_mock_test, communicates_with_echo_server)
 
 }
 
-TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_connection_shut_down)
+TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_server_shut_down)
 {
 	auto mock = nemok::start<telnet>();
-	mock.when("hello world").shutdown();
+	mock.when("hello world").shutdown_server();
 	
 	auto client = mock.connect();
 	client.write("hello world", 11);
@@ -124,5 +124,16 @@ TEST_F(telnet_mock_test, excludes_once_matched_expectation)
 	client.write("hellohellohellohello", 20);
 
 	EXPECT_EQ("+---", nemok::read_all(client, 4));
+}
+
+TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_connection_being_closed)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("hello world").close_connection();
+	
+	auto client = mock.connect();
+	client.write("hello world", 11);
+
+	EXPECT_THROW(nemok::read_all(client, 10), nemok::network_error);
 }
 

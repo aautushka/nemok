@@ -313,36 +313,40 @@ bool starts_with(const T& str, const V& test)
 
 void telnet::serve_client(client& cl)
 {
+	std::vector<uint8_t> input;
+	std::vector<uint8_t> buffer(1024);
+	expect_list expect = _expect;
+
 	ssize_t bytes = 0;
 	do
 	{
-		bytes = cl.read(&_buffer[0], _buffer.size());
+		bytes = cl.read(&buffer[0], buffer.size());
 		assert(bytes >= 0);
 	
 		if (bytes > 0)
 		{
-			_input.insert(_input.end(), &_buffer[0], &_buffer[0] + bytes); 
+			input.insert(input.end(), &buffer[0], &buffer[0] + bytes); 
 
-			auto e = _expect.begin();
-			while (e != _expect.end())
+			auto e = expect.begin();
+			while (e != expect.end())
 			{
-				if (starts_with(_input, e->trigger))
+				if (starts_with(input, e->trigger))
 				{
-					_input.erase(std::begin(_input), std::begin(_input) + e->trigger.size());
+					input.erase(std::begin(input), std::begin(input) + e->trigger.size());
 					e->fire(cl);
 
 					if (!e->active())
 					{
-						_expect.erase(e);
+						expect.erase(e);
 					}
 					else
 					{
 						expectation temp = std::move(*e);
-						_expect.erase(e);
-						_expect.emplace_back(std::move(temp));	
+						expect.erase(e);
+						expect.emplace_back(std::move(temp));	
 					}
 
-					e = _expect.begin();
+					e = expect.begin();
 					continue;
 				}
 				++e;
@@ -354,7 +358,6 @@ void telnet::serve_client(client& cl)
 
 telnet::telnet()
 {
-	_buffer.resize(1024);
 }
 
 void telnet::add_action(action::func_type f)
@@ -362,10 +365,17 @@ void telnet::add_action(action::func_type f)
 	current().act.add(std::move(f));
 }
 
-telnet& telnet::shutdown()
+telnet& telnet::shutdown_server()
 {
 	assert(!_expect.empty());
 	add_action([=](auto&){this->stop();});
+	return *this;
+}
+
+telnet& telnet::close_connection()
+{
+	assert(!_expect.empty());
+	add_action([=](auto& conn){conn.disconnect();});
 	return *this;
 }
 

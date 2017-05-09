@@ -16,10 +16,10 @@
 	mock.when(content("hello world")).reply("200 OK");
 	mock.when(request().with_content("hello world").reply("200 OK"));
 	mock.when(request("GET /")).freeze();
-	mock.when(request("GET /")).shutdown();
+	mock.when(request("GET /")).shutdown_server();
 	mock.when(request("GET /")).close_connection();
 	mock.when(unexpected()).reply("500 Error");
-	mock.when(unexpected()).crash();
+	mock.when(unexpected()).shutdown_server();
 	mock.when(GET).reply("200 OK");
 	mock.when(GET).reply(200_ok);
 	mock.when(GET("/").reply(200);
@@ -208,10 +208,11 @@ public:
 
 	telnet& when(std::string input);
 	telnet& reply(std::string output);
-	telnet& shutdown();
+	telnet& shutdown_server();
 	telnet& freeze(useconds_t usec);
 	telnet& once();
 	telnet& reply_once(std::string output);
+	telnet& close_connection();
 
 private:
 	virtual void serve_client(client& c);
@@ -219,10 +220,7 @@ private:
 	expectation& current();
 
 	using expect_list = std::list<expectation>;
-
 	expect_list _expect;
-	std::vector<uint8_t> _input;
-	std::vector<uint8_t> _buffer;
 };
 
 template <typename T>

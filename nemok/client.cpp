@@ -50,7 +50,7 @@ bool client::connected() const
 
 void client::connect(port_t port)
 {
-	assert(!connected());
+	disconnect();
 
 	_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sock == -1)
@@ -89,7 +89,10 @@ int wait_while_ready(pollfd& fd)
 
 ssize_t client::read(void* buffer, size_t length)
 {
-	assert(connected());
+	if (!connected())
+	{
+		throw not_connected();
+	}
 
 	ssize_t bytes = -1;
 	pollfd poll_data;
@@ -123,7 +126,11 @@ ssize_t client::read(void* buffer, size_t length)
 
 ssize_t client::write(const void* buffer, size_t length)
 {
-	assert(connected());
+	if (!connected())
+	{
+		throw not_connected();
+	}
+
 	ssize_t bytes = -1;
 	do
 	{
