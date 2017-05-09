@@ -211,6 +211,7 @@ public:
 	telnet& shutdown_server();
 	telnet& freeze(useconds_t usec);
 	telnet& once();
+	telnet& times(int n);
 	telnet& reply_once(std::string output);
 	telnet& close_connection();
 

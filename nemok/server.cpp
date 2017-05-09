@@ -391,6 +391,11 @@ telnet& telnet::once()
 	current().max_calls = 1;
 }
 
+telnet& telnet::times(int n)
+{
+	current().max_calls = n;
+}
+
 telnet& telnet::reply_once(std::string output)
 {
 	return reply(std::move(output)).once();

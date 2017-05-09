@@ -137,3 +137,14 @@ TEST_F(telnet_mock_test, cant_read_anything_from_client_because_of_connection_be
 	EXPECT_THROW(nemok::read_all(client, 10), nemok::network_error);
 }
 
+TEST_F(telnet_mock_test, calls_a_specific_expectation_the_exact_number_of_times)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("A").reply("+").times(2);
+	mock.when("A").reply("-");
+	
+	auto client = mock.connect();
+	client.write("AAAAAA", 6);
+
+	EXPECT_EQ("+-+---", nemok::read_all(client, 4));
+}
