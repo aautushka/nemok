@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <regex.h>
 #include <cstring>
+#include <cassert>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -293,6 +294,7 @@ using buffer_type = std::vector<uint8_t>;
 struct expectation
 {
 	using trigger_type = std::function<bool(buffer_type&)>;
+	using action_type = std::function<void(client&)>;
 
 	trigger_type trigger;
 	action act;
@@ -411,12 +413,41 @@ inline regex operator "" _re(const char* expr, size_t sz)
 }
 }
 
+class matcher
+{
+public:
+	using trigger_type = expectation::trigger_type;
+	using action_type = expectation::action_type;
+
+	matcher() {}
+
+	matcher& when(std::string input);
+	matcher& when(trigger_type&& trigger);
+	matcher& reply(std::string output);
+	matcher& exec(action_type&& act);
+	matcher& freeze(useconds_t usec);
+	matcher& once();
+	matcher& times(int n);
+	matcher& order(int n);
+	matcher& reply_once(std::string output);
+	matcher& close_connection();
+
+	void match(buffer_type& input, client& cl);
+
+private:
+	void add_action(action::func_type f);
+	expectation& current();
+
+	expect_list _expect;
+	expectation _current;
+};
+
 class telnet : public server
 {
 public:
 	using trigger_type = expectation::trigger_type;
 
-	telnet();
+	telnet() {}
 
 	telnet& when(std::string input);
 	telnet& when(trigger_type&& trigger);
@@ -431,11 +462,8 @@ public:
 
 private:
 	virtual void serve_client(client& c);
-	void add_action(action::func_type f);
-	expectation& current();
 
-	expect_list _expect;
-	expectation _current;
+	matcher _matcher;
 };
 
 template <typename T>
