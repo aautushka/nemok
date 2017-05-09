@@ -199,6 +199,11 @@ struct expectation
 	{
 		return times_fired < max_calls;
 	}
+
+	bool empty() const
+	{
+		return trigger.empty();
+	}
 };
 
 class expect_list
@@ -210,6 +215,7 @@ public:
 	bool empty() const;
 	expectation& create();
 	expectation& last();
+	expectation& create(expectation&& e);
 
 private:
 	using data = std::list<expectation>;
@@ -238,6 +244,7 @@ private:
 	expectation& current();
 
 	expect_list _expect;
+	expectation _current;
 };
 
 template <typename T>

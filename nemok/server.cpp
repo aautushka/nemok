@@ -288,16 +288,19 @@ std::string read_all(client& cl, size_t len)
 
 telnet& telnet::when(std::string input)
 {
-	expectation& e = _expect.create();
-	e.trigger = std::move(input);
+	if (!_current.empty())
+	{
+		_expect.create(std::move(_current));
+	}
+
+	_current = expectation();
+	_current.trigger = std::move(input);
 
 	return *this;
 }
 
 telnet& telnet::reply(std::string output)
 {
-	assert(!_expect.empty());
-	
 	add_action([=](auto& c){c.write(output.c_str(), output.size());});
 
 	return *this;
@@ -313,6 +316,12 @@ void telnet::serve_client(client& cl)
 {
 	std::vector<uint8_t> input;
 	std::vector<uint8_t> buffer(1024);
+
+	if (!_current.empty())
+	{
+		_expect.create(std::move(_current));
+	}
+
 	expect_list expect = _expect;
 
 	ssize_t bytes = 0;
@@ -341,21 +350,18 @@ void telnet::add_action(action::func_type f)
 
 telnet& telnet::shutdown_server()
 {
-	assert(!_expect.empty());
 	add_action([=](auto&){this->stop();});
 	return *this;
 }
 
 telnet& telnet::close_connection()
 {
-	assert(!_expect.empty());
 	add_action([=](auto& conn){conn.disconnect();});
 	return *this;
 }
 
 telnet& telnet::freeze(useconds_t usec)
 {
-	assert(!_expect.empty());
 	add_action([=](auto&){::usleep(usec);});
 	return *this;
 }
@@ -382,8 +388,7 @@ telnet& telnet::order(int n)
 
 expectation& telnet::current()
 {
-	assert(!_expect.empty());
-	return _expect.last();
+	return _current;
 }
 
 void action::add(func_type func)
@@ -448,6 +453,13 @@ expectation& expect_list::last()
 	assert(_last != nullptr);
 	return *_last;
 
+}
+
+expectation& expect_list::create(expectation&& e)
+{
+	_data.emplace_back(std::move(e));
+	_last = &_data.back();
+	return last();
 }
 
 } // namespace nemok
