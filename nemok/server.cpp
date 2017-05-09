@@ -383,6 +383,7 @@ telnet& telnet::reply_once(std::string output)
 
 telnet& telnet::order(int n)
 {
+	current().order = n;
 	return *this;
 }
 
@@ -408,29 +409,34 @@ void expect_list::walk_stream(buffer& input, client& cl)
 {
 	if (!input.empty())
 	{
-		auto e = _data.begin();
-		while (e != _data.end())
+		auto l = _data.begin();
+		while (l != _data.end())
 		{
-			if (starts_with(input, e->trigger))
+			auto e = l->second.begin();
+			while (e != l->second.end())
 			{
-				input.erase(std::begin(input), std::begin(input) + e->trigger.size());
-				e->fire(cl);
-
-				if (!e->active())
+				if (starts_with(input, e->trigger))
 				{
-					_data.erase(e);
-				}
-				else
-				{
-					expectation temp = std::move(*e);
-					_data.erase(e);
-					_data.emplace_back(std::move(temp));	
-				}
+					input.erase(std::begin(input), std::begin(input) + e->trigger.size());
+					e->fire(cl);
 
-				e = _data.begin();
-				continue;
+					if (!e->active())
+					{
+						l->second.erase(e);
+					}
+					else
+					{
+						expectation temp = std::move(*e);
+						l->second.erase(e);
+						l->second.emplace_back(std::move(temp));	
+					}
+
+					e = l->second.begin();
+					continue;
+				}
+				++e;
 			}
-			++e;
+			++l;
 		}
 	}
 }
@@ -440,26 +446,11 @@ bool expect_list::empty() const
 	return _data.empty();
 }
 
-expectation& expect_list::create()
-{
-	expectation e;
-	_data.emplace_back(std::move(e));
-	_last = &_data.back();
-	return last();
-}
-
-expectation& expect_list::last()
-{
-	assert(_last != nullptr);
-	return *_last;
-
-}
-
 expectation& expect_list::create(expectation&& e)
 {
-	_data.emplace_back(std::move(e));
-	_last = &_data.back();
-	return last();
+	const int ord = e.order;
+	_data[ord].emplace_back(std::move(e));
+	return _data[ord].back();
 }
 
 } // namespace nemok

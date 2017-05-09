@@ -7,6 +7,7 @@
 #include <list>
 #include <vector>
 #include <memory>
+#include <map>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -188,6 +189,7 @@ struct expectation
 	action act;
 	int times_fired = 0;
 	int max_calls = std::numeric_limits<int>::max();
+	int order = 100;
 
 	void fire(client& cl)
 	{
@@ -213,14 +215,12 @@ public:
 
 	void walk_stream(buffer& buf, client& cl);
 	bool empty() const;
-	expectation& create();
-	expectation& last();
 	expectation& create(expectation&& e);
 
 private:
-	using data = std::list<expectation>;
-	data _data;
-	expectation* _last = nullptr;
+	using list = std::list<expectation>;
+	using priority_list = std::map<int, list>;
+	priority_list _data;
 };
 
 class telnet : public server
