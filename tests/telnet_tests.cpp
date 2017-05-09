@@ -176,11 +176,10 @@ TEST_F(telnet_mock_test, matches_any_line)
 
 TEST_F(telnet_mock_test, matches_regex)
 {
-	using nemok::regex;
+	using namespace nemok::lit; 
 
 	auto mock = nemok::start<telnet>();
-	//mock.when(regex("[^\\n]+\\n")).reply("done\n");
-	mock.when(regex("[a-z]+\n")).reply("done\n");
+	mock.when("[a-z]+\n"_re).reply("done\n");
 	
 	auto client = mock.connect();
 	client.write_all("hello\nworld\n", 12);

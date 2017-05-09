@@ -10,6 +10,7 @@
 #include <map>
 #include <algorithm>
 #include <regex.h>
+#include <cstring>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -400,6 +401,15 @@ private:
 
 	std::string _re_str;
 };
+
+namespace lit
+{
+inline regex operator "" _re(const char* expr, size_t sz)
+{
+	assert(sz == strlen(expr));
+	return regex(expr);
+}
+}
 
 class telnet : public server
 {
