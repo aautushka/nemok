@@ -321,27 +321,6 @@ void matcher::match(buffer_type& input, client& cl)
 	_expect.walk_stream(input, cl);
 }
 
-void telnet::serve_client(client& cl)
-{
-	buffer_type input;
-	buffer_type buffer(1024);
-	matcher matcher_copy = _matcher;
-
-	ssize_t bytes = 0;
-	do
-	{
-		bytes = cl.read_some(&buffer[0], buffer.size());
-		assert(bytes >= 0);
-	
-		if (bytes > 0)
-		{
-			input.insert(input.end(), &buffer[0], &buffer[0] + bytes); 
-			matcher_copy.match(input, cl);
-		}
-	}
-	while (bytes > 0); // zero value mark end of stream
-}
-
 void matcher::add_action(action::func_type f)
 {
 	current().act.add(std::move(f));
@@ -461,67 +440,6 @@ bool starts_with::operator ()(buffer_type& input)
 
 	return false;
 }
-
-telnet& telnet::when(std::string input)
-{
-	_matcher.when(input);
-	return *this;
-}
-
-telnet& telnet::when(trigger_type&& trigger)
-{
-	_matcher.when(std::move(trigger));
-	return *this;
-}
-
-telnet& telnet::reply(std::string output)
-{
-	_matcher.reply(output);
-	return *this;
-}
-
-telnet& telnet::shutdown_server()
-{
-	_matcher.exec([=](auto&){this->stop();});
-	return *this;
-}
-
-telnet& telnet::freeze(useconds_t usec)
-{
-	_matcher.freeze(usec);
-	return *this;
-}
-
-telnet& telnet::once()
-{
-	_matcher.once();
-	return *this;
-}
-
-telnet& telnet::times(int n)
-{
-	_matcher.times(n);
-	return *this;
-}
-
-telnet& telnet::order(int n)
-{
-	_matcher.order(n);
-	return *this;
-}
-
-telnet& telnet::reply_once(std::string output)
-{
-	_matcher.reply_once(output);
-	return *this;
-}
-
-telnet& telnet::close_connection()
-{
-	_matcher.close_connection();
-	return *this;
-}
-
 
 } // namespace nemok
 

@@ -447,28 +447,110 @@ private:
 	expectation _current;
 };
 
-class telnet : public server
+template <typename T>
+class basic_mock : public server
 {
 public:
 	using trigger_type = expectation::trigger_type;
+	using action_type = expectation::action_type;
 
-	telnet() {}
+	basic_mock() {}
+	T& when(trigger_type&& trigger)
+	{
+		_matcher.when(std::move(trigger));
+		return static_cast<T&>(*this);
+	}
 
-	telnet& when(std::string input);
-	telnet& when(trigger_type&& trigger);
-	telnet& reply(std::string output);
-	telnet& shutdown_server();
-	telnet& freeze(useconds_t usec);
-	telnet& once();
-	telnet& times(int n);
-	telnet& order(int n);
-	telnet& reply_once(std::string output);
-	telnet& close_connection();
+	T& exec(action_type&& act)
+	{
+		_matcher.exec(std::move(act));
+		return static_cast<T&>(*this);
+	}
+
+	T& shutdown_server()
+	{
+		return exec([=](auto&){this->stop();});
+	}
+
+
+	T& freeze(useconds_t usec)
+	{
+		_matcher.freeze(usec);
+		return static_cast<T&>(*this);
+	}
+
+	T& once()
+	{
+		_matcher.once();
+		return static_cast<T&>(*this);
+	}
+
+	T& times(int n)
+	{
+		_matcher.times(n);
+		return static_cast<T&>(*this);
+	}
+
+	T& order(int n)
+	{
+		_matcher.order(n);
+		return static_cast<T&>(*this);
+	}
+
+	T& reply_once(std::string output)
+	{
+		_matcher.reply_once(output);
+		return static_cast<T&>(*this);
+	}
+
+	T& close_connection()
+	{
+		_matcher.close_connection();
+		return static_cast<T&>(*this);
+	}
+
+	T& when(std::string input)
+	{
+		_matcher.when(input);
+		return static_cast<T&>(*this);
+	}
+
+
+	T& reply(std::string output)
+	{
+		_matcher.reply(output);
+		return static_cast<T&>(*this);
+	}
+
 
 private:
-	virtual void serve_client(client& c);
+	virtual void serve_client(client& cl)
+	{
+		buffer_type input;
+		buffer_type buffer(1024);
+		matcher matcher_copy = _matcher;
+		ssize_t bytes = 0;
+		do
+		{
+			bytes = cl.read_some(&buffer[0], buffer.size());
+			if (bytes > 0)
+			{
+				input.insert(input.end(), &buffer[0], &buffer[0] + bytes); 
+				matcher_copy.match(input, cl);
+			}
+		}
+		while (bytes > 0); // zero value mark end of stream
+	}
 
 	matcher _matcher;
+};
+
+class telnet : public basic_mock<telnet>
+{
+public:
+	telnet() {}
+private:
+
 };
 
 template <typename T>
