@@ -276,6 +276,7 @@ private:
 client connect_client(const server& server);
 std::string read_all(client& cl, size_t len);
 std::string read_some(client& cl, size_t len);
+void write_client(client& cl, std::string buf);
 
 
 // echo server
@@ -576,14 +577,10 @@ public:
 		return connect_client(*t);
 	}
 
-	T& when(std::string input)
+	template <typename U>
+	T& when(U u)
 	{
-		return t->when(input);
-	}
-
-	T& when(trigger_type&& trigger)
-	{
-		return t->when(std::move(trigger));
+		return t->when(std::move(u));
 	}
 
 private:

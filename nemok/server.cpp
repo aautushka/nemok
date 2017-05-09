@@ -263,6 +263,11 @@ client connect_client(const server& server)
 	return std::move(ret);
 }
 
+void write_client(client& c, std::string buf)
+{
+	c.write(buf.c_str(), buf.size());
+}
+
 std::string read_some(client& cl, size_t len)
 {
 	std::string ret;

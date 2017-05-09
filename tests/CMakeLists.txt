@@ -6,6 +6,7 @@ include_directories (..)
 set(SRC 
   server_tests
   telnet_tests
+  http_tests
 )
 
 add_executable(tests ${SRC})
