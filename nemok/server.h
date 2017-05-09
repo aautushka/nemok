@@ -9,6 +9,7 @@
 #include <memory>
 #include <map>
 #include <algorithm>
+#include <regex.h>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -97,6 +98,101 @@ class not_connected : public exception
 {
 public:
 	not_connected() : exception("client is not connected") {}
+};
+
+class posix_regex
+{
+public:
+	posix_regex()
+	{
+	}
+
+	~posix_regex()
+	{
+		free_regex();
+	}
+
+	posix_regex(const char* pattern, int flags)
+	{
+		compile(pattern);
+	}
+
+	explicit posix_regex(const char* pattern)
+	{
+		compile(pattern);
+	}
+
+	void compile(const char* pattern)
+	{
+		compile(pattern, REG_EXTENDED);
+	}
+
+	void compile(const char* pattern, int flags)
+	{
+		reset();
+		_regex.reset(new regex_t);
+		if (regcomp(_regex.get(), pattern, flags))
+		{
+			reset();
+		}
+	}
+
+	posix_regex(const posix_regex&) = delete;
+	posix_regex& operator =(const posix_regex&) = delete;
+
+
+	posix_regex(posix_regex&& rhs)
+	{
+		std::swap(_regex, rhs._regex);
+	}
+
+	posix_regex& operator =(posix_regex&& rhs)
+	{
+		std::swap(_regex, rhs._regex);
+		return *this;
+	}
+
+	bool match(const char* input) const
+	{
+		if (_regex)
+		{
+			return 0 == regexec(_regex.get(), input, 0, nullptr, 0);
+		}
+
+		return false;
+	}
+
+	bool match(const char* input, std::pair<const char*, const char*>& match)
+	{
+		if (_regex)
+		{
+			regmatch_t m;
+			if (0 == regexec(_regex.get(), input, 1, &m, 0))
+			{
+				match = std::make_pair(input + m.rm_so, input + m.rm_eo);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	void reset()
+	{
+		free_regex();
+	}
+
+private:
+	void free_regex()
+	{
+		if (_regex)
+		{
+			regfree(_regex.get());
+			_regex.reset();
+		}
+	}
+
+	std::unique_ptr<regex_t> _regex = nullptr;
 };
 
 // a very simple tcp/ip client
@@ -273,12 +369,36 @@ private:
 	std::string _test;
 };
 
+
+
 class regex
 {
 public:
-	explicit regex(std::string expr) : _expr(expr) {}
+	explicit regex(std::string expr)
+	{
+		_re_str = std::move(expr);
+	}
+
+	bool operator ()(buffer_type& input)
+	{
+		posix_regex re(_re_str.c_str());
+
+		std::pair<const char*, const char*> match;
+		std::string copy(input.begin(), input.end());
+		if (re.match(copy.c_str(), match))
+		{
+			auto beg = input.begin();
+			auto end = beg;
+			std::advance(end, match.second - copy.c_str());
+			input.erase(beg, end);
+			return true;
+		}
+
+		return false;
+	}
 private:
-	std::string _expr;
+
+	std::string _re_str;
 };
 
 class telnet : public server
@@ -289,7 +409,7 @@ public:
 	telnet();
 
 	telnet& when(std::string input);
-	telnet& when(trigger_type trigger);
+	telnet& when(trigger_type&& trigger);
 	telnet& reply(std::string output);
 	telnet& shutdown_server();
 	telnet& freeze(useconds_t usec);
@@ -353,9 +473,9 @@ public:
 		return t->when(input);
 	}
 
-	T& when(trigger_type trigger)
+	T& when(trigger_type&& trigger)
 	{
-		return t->when(trigger);
+		return t->when(std::move(trigger));
 	}
 
 private:

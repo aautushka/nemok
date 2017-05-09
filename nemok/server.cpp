@@ -286,7 +286,7 @@ std::string read_all(client& cl, size_t len)
 	return std::move(ret); 
 }
 
-telnet& telnet::when(trigger_type trigger)
+telnet& telnet::when(trigger_type&& trigger)
 {
 	if (!_current.empty())
 	{

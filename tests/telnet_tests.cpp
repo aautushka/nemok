@@ -174,3 +174,17 @@ TEST_F(telnet_mock_test, matches_any_line)
 	EXPECT_EQ("done\ndone\n", nemok::read_all(client, 10));
 }
 
+TEST_F(telnet_mock_test, matches_regex)
+{
+	using nemok::regex;
+
+	auto mock = nemok::start<telnet>();
+	//mock.when(regex("[^\\n]+\\n")).reply("done\n");
+	mock.when(regex("[a-z]+\n")).reply("done\n");
+	
+	auto client = mock.connect();
+	client.write_all("hello\nworld\n", 12);
+
+	EXPECT_EQ("done\ndone\n", nemok::read_all(client, 10));
+}
+
