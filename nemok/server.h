@@ -525,13 +525,15 @@ private:
 class telnet : public basic_mock<telnet>
 {
 public:
+	using base_type = basic_mock<telnet>;
+
 	telnet() {}
 
 	telnet& when(std::string input);
 	telnet& reply(std::string output);
-	telnet& reply_one(std::string output);
-private:
+	telnet& reply_once(std::string output);
 
+	using base_type::when;
 };
 
 template <typename T>

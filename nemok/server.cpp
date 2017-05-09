@@ -355,7 +355,7 @@ telnet& telnet::reply_once(std::string output)
 
 telnet& telnet::when(std::string input)
 {
-	return when(starts_with(input));
+	return base_type::when(starts_with(input));
 }
 
 telnet& telnet::reply(std::string output)
