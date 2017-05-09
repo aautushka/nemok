@@ -288,10 +288,8 @@ std::string read_all(client& cl, size_t len)
 
 telnet& telnet::when(std::string input)
 {
-	expectation e;
+	expectation& e = _expect.create();
 	e.trigger = std::move(input);
-
-	_expect.emplace_back(std::move(e));
 
 	return *this;
 }
@@ -326,31 +324,7 @@ void telnet::serve_client(client& cl)
 		if (bytes > 0)
 		{
 			input.insert(input.end(), &buffer[0], &buffer[0] + bytes); 
-
-			auto e = expect.begin();
-			while (e != expect.end())
-			{
-				if (starts_with(input, e->trigger))
-				{
-					input.erase(std::begin(input), std::begin(input) + e->trigger.size());
-					e->fire(cl);
-
-					if (!e->active())
-					{
-						expect.erase(e);
-					}
-					else
-					{
-						expectation temp = std::move(*e);
-						expect.erase(e);
-						expect.emplace_back(std::move(temp));	
-					}
-
-					e = expect.begin();
-					continue;
-				}
-				++e;
-			}
+			expect.walk_stream(input, cl);
 		}
 	}
 	while (bytes > 0); // zero value mark end of stream
@@ -401,10 +375,15 @@ telnet& telnet::reply_once(std::string output)
 	return reply(std::move(output)).once();
 }
 
+telnet& telnet::order(int n)
+{
+	return *this;
+}
+
 expectation& telnet::current()
 {
 	assert(!_expect.empty());
-	return _expect.back();
+	return _expect.last();
 }
 
 void action::add(func_type func)
@@ -419,5 +398,57 @@ void action::fire(client& cl)
 		f(cl);
 	}
 }
+
+void expect_list::walk_stream(buffer& input, client& cl)
+{
+	if (!input.empty())
+	{
+		auto e = _data.begin();
+		while (e != _data.end())
+		{
+			if (starts_with(input, e->trigger))
+			{
+				input.erase(std::begin(input), std::begin(input) + e->trigger.size());
+				e->fire(cl);
+
+				if (!e->active())
+				{
+					_data.erase(e);
+				}
+				else
+				{
+					expectation temp = std::move(*e);
+					_data.erase(e);
+					_data.emplace_back(std::move(temp));	
+				}
+
+				e = _data.begin();
+				continue;
+			}
+			++e;
+		}
+	}
+}
+
+bool expect_list::empty() const
+{
+	return _data.empty();
+}
+
+expectation& expect_list::create()
+{
+	expectation e;
+	_data.emplace_back(std::move(e));
+	_last = &_data.back();
+	return last();
+}
+
+expectation& expect_list::last()
+{
+	assert(_last != nullptr);
+	return *_last;
+
+}
+
 } // namespace nemok
 

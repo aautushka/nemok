@@ -148,3 +148,16 @@ TEST_F(telnet_mock_test, calls_a_specific_expectation_the_exact_number_of_times)
 
 	EXPECT_EQ("+-+---", nemok::read_all(client, 6));
 }
+
+TEST_F(telnet_mock_test, DISABLED_the_lowest_order_expectation_never_fires)
+{
+	auto mock = nemok::start<telnet>();
+	mock.when("A").reply("+").order(1);
+	mock.when("A").reply("-").order(2);
+	
+	auto client = mock.connect();
+	client.write("AAAAAA", 6);
+
+	EXPECT_EQ("++++++", nemok::read_all(client, 6));
+}
+

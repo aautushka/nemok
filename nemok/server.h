@@ -201,6 +201,22 @@ struct expectation
 	}
 };
 
+class expect_list
+{
+public:
+	using buffer = std::vector<uint8_t>;
+
+	void walk_stream(buffer& buf, client& cl);
+	bool empty() const;
+	expectation& create();
+	expectation& last();
+
+private:
+	using data = std::list<expectation>;
+	data _data;
+	expectation* _last = nullptr;
+};
+
 class telnet : public server
 {
 public:
@@ -212,6 +228,7 @@ public:
 	telnet& freeze(useconds_t usec);
 	telnet& once();
 	telnet& times(int n);
+	telnet& order(int n);
 	telnet& reply_once(std::string output);
 	telnet& close_connection();
 
@@ -220,7 +237,6 @@ private:
 	void add_action(action::func_type f);
 	expectation& current();
 
-	using expect_list = std::list<expectation>;
 	expect_list _expect;
 };
 
