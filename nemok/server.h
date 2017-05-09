@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <algorithm>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -117,8 +118,8 @@ public:
 	void shutdown();
 	void assign(int df);
 
-	ssize_t read(void* buffer, size_t length);
-	ssize_t write(const void* buffer, size_t length);
+	ssize_t read_some(void* buffer, size_t length);
+	ssize_t write_some(const void* buffer, size_t length);
 	bool connected() const;
 
 	void write_all(const void* buffer, size_t length);
@@ -245,6 +246,23 @@ private:
 	std::string _line;
 };
 
+class any_line
+{
+public:
+	bool operator ()(buffer_type& input)
+	{
+		auto newline = std::find(input.begin(), input.end(), uint8_t('\n'));
+		if (newline != input.end())
+		{
+			input.erase(input.begin(), ++newline);
+			return true;
+		}
+
+		return false;
+	}
+private:
+};
+
 class starts_with
 {
 public:
@@ -294,6 +312,8 @@ template <typename T>
 class mock
 {
 public:
+	using trigger_type = expectation::trigger_type;
+
 	mock()
 	{
 		t.reset(new T);
@@ -331,6 +351,11 @@ public:
 	T& when(std::string input)
 	{
 		return t->when(input);
+	}
+
+	T& when(trigger_type trigger)
+	{
+		return t->when(trigger);
 	}
 
 private:

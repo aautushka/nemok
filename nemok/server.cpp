@@ -250,9 +250,9 @@ void echo::serve_client(client& c)
 {
 	buffer_type buffer(1024);
 	size_t bytes_received = 0;
-	while (bytes_received == c.read(&buffer[0], buffer.size()))
+	while (bytes_received == c.read_some(&buffer[0], buffer.size()))
 	{
-		c.write(&buffer[0], bytes_received);
+		c.write_all(&buffer[0], bytes_received);
 	}
 }
 
@@ -269,7 +269,7 @@ std::string read_some(client& cl, size_t len)
 	if (len > 0)
 	{
 		ret.resize(len);
-		size_t bytes_read = cl.read(&ret[0], ret.size());
+		size_t bytes_read = cl.read_some(&ret[0], ret.size());
 		ret.resize(bytes_read);
 	}
 	return std::move(ret); 
@@ -306,7 +306,7 @@ telnet& telnet::when(std::string input)
 
 telnet& telnet::reply(std::string output)
 {
-	add_action([=](auto& c){c.write(output.c_str(), output.size());});
+	add_action([=](auto& c){c.write_all(output.c_str(), output.size());});
 
 	return *this;
 }
@@ -326,7 +326,7 @@ void telnet::serve_client(client& cl)
 	ssize_t bytes = 0;
 	do
 	{
-		bytes = cl.read(&buffer[0], buffer.size());
+		bytes = cl.read_some(&buffer[0], buffer.size());
 		assert(bytes >= 0);
 	
 		if (bytes > 0)

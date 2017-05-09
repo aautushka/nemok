@@ -87,7 +87,7 @@ int wait_while_ready(pollfd& fd)
 	}
 }
 
-ssize_t client::read(void* buffer, size_t length)
+ssize_t client::read_some(void* buffer, size_t length)
 {
 	if (!connected())
 	{
@@ -124,7 +124,7 @@ ssize_t client::read(void* buffer, size_t length)
 	return bytes;
 }
 
-ssize_t client::write(const void* buffer, size_t length)
+ssize_t client::write_some(const void* buffer, size_t length)
 {
 	if (!connected())
 	{
@@ -171,7 +171,7 @@ void client::write_all(const void* buffer, size_t len)
 	size_t written = 0;
 	while (written != len)
 	{
-		written += write(buf + written, len - written);
+		written += write_some(buf + written, len - written);
 	}
 
 }
@@ -182,7 +182,7 @@ void client::read_all(void* buffer, size_t len)
 	size_t bytes_read = 0;
 	while (bytes_read != len)
 	{
-		ssize_t ret = read(buf + bytes_read, len - bytes_read); 
+		ssize_t ret = read_some(buf + bytes_read, len - bytes_read); 
 		if (ret > 0)
 		{
 			bytes_read += ret;
