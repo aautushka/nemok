@@ -146,5 +146,5 @@ TEST_F(telnet_mock_test, calls_a_specific_expectation_the_exact_number_of_times)
 	auto client = mock.connect();
 	client.write("AAAAAA", 6);
 
-	EXPECT_EQ("+-+---", nemok::read_all(client, 4));
+	EXPECT_EQ("+-+---", nemok::read_all(client, 6));
 }
