@@ -299,18 +299,6 @@ matcher& matcher::when(trigger_type&& trigger)
 	return *this;
 }
 
-matcher& matcher::when(std::string input)
-{
-	return when(starts_with(input));
-}
-
-matcher& matcher::reply(std::string output)
-{
-	add_action([=](auto& c){c.write_all(output.c_str(), output.size());});
-
-	return *this;
-}
-
 void matcher::match(buffer_type& input, client& cl)
 {
 	if (!_current.empty())
@@ -354,14 +342,26 @@ matcher& matcher::times(int n)
 	current().max_calls = n;
 }
 
-matcher& matcher::reply_once(std::string output)
+matcher& matcher::order(int n)
+{
+	current().order = n;
+	return *this;
+}
+
+telnet& telnet::reply_once(std::string output)
 {
 	return reply(std::move(output)).once();
 }
 
-matcher& matcher::order(int n)
+telnet& telnet::when(std::string input)
 {
-	current().order = n;
+	return when(starts_with(input));
+}
+
+telnet& telnet::reply(std::string output)
+{
+	exec([=](auto& c){c.write_all(output.c_str(), output.size());});
+
 	return *this;
 }
 

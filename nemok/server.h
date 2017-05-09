@@ -426,15 +426,12 @@ public:
 
 	matcher() {}
 
-	matcher& when(std::string input);
 	matcher& when(trigger_type&& trigger);
-	matcher& reply(std::string output);
 	matcher& exec(action_type&& act);
 	matcher& freeze(useconds_t usec);
 	matcher& once();
 	matcher& times(int n);
 	matcher& order(int n);
-	matcher& reply_once(std::string output);
 	matcher& close_connection();
 
 	void match(buffer_type& input, client& cl);
@@ -497,31 +494,11 @@ public:
 		return static_cast<T&>(*this);
 	}
 
-	T& reply_once(std::string output)
-	{
-		_matcher.reply_once(output);
-		return static_cast<T&>(*this);
-	}
-
 	T& close_connection()
 	{
 		_matcher.close_connection();
 		return static_cast<T&>(*this);
 	}
-
-	T& when(std::string input)
-	{
-		_matcher.when(input);
-		return static_cast<T&>(*this);
-	}
-
-
-	T& reply(std::string output)
-	{
-		_matcher.reply(output);
-		return static_cast<T&>(*this);
-	}
-
 
 private:
 	virtual void serve_client(client& cl)
@@ -549,6 +526,10 @@ class telnet : public basic_mock<telnet>
 {
 public:
 	telnet() {}
+
+	telnet& when(std::string input);
+	telnet& reply(std::string output);
+	telnet& reply_one(std::string output);
 private:
 
 };
