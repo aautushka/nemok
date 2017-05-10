@@ -9,7 +9,7 @@ struct http_mock_test : public ::testing::Test
 	using http = nemok::http;
 };
 
-TEST_F(http_mock_test, DISABLED_replies_to_a_request_according_to_specified_expectation)
+TEST_F(http_mock_test, replies_to_a_request_according_to_specified_expectation)
 {
 	auto mock = nemok::start<http>();
 	mock.when(http::get("/")).reply(resp(200));
@@ -17,7 +17,7 @@ TEST_F(http_mock_test, DISABLED_replies_to_a_request_according_to_specified_expe
 	auto client = mock.connect();
 	http::send(client, "GET / HTTP/1.1\r\n\r\n");
 
-	EXPECT_EQ("HTTP/1.1 200 OK", http::receive(client));
+	EXPECT_EQ("HTTP/1.1 200 OK\r\n\r\n", http::receive(client));
 
 }
 

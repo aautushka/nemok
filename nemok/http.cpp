@@ -30,12 +30,13 @@ void http::send(client& c, std::string buf)
 
 http& http::when(request r)
 {
-	return *this;
+	return base_type::when(starts_with(r.str()));
 }
 
 http& http::reply(response r)
 {
-	return *this;
+	auto str = r.str();
+	return base_type::exec([str](auto& c){c.write(str.c_str(), str.size());});
 }
 
 } // namespace nemok

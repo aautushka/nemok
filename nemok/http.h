@@ -1,8 +1,10 @@
 #pragma once
+#include <sstream>
 #include "server.h"
 
 namespace nemok
 {
+
 const std::map<int, const char*> http_status_codes
 {
 	{100, "Continue"},
@@ -68,6 +70,12 @@ const std::map<int, const char*> http_status_codes
 	{511, "Network Authentication Required"}
 };
 
+inline std::string desc_http_code(int code)
+{
+	auto i = http_status_codes.find(code);
+	return i == std::end(http_status_codes) ? "" : i->second;
+}
+
 enum http_version
 {
 	HTTP_10,
@@ -87,10 +95,58 @@ enum http_method
 	HTTP_PATCH
 };
 
+inline std::string http_method_to_str(http_method method)
+{
+	switch (method)
+	{
+	case HTTP_GET: return "GET";
+	case HTTP_POST: return "POST";
+	case HTTP_HEAD: return "HEAD";
+	case HTTP_PUT: return "PUT"; 
+	case HTTP_DELETE: return "DELETE";
+	case HTTP_TRACE: return "TRACE";
+	case HTTP_OPTIONS: return "OPTIONS";
+	case HTTP_CONNECT: return "CONNECT";
+	case HTTP_PATCH: return "PATCH";
+	default: assert(false);
+	};
+
+	return "";
+}
+
+inline std::ostream& operator <<(std::ostream& stream, http_method method)
+{
+	return stream << http_method_to_str(method);
+}
+
+inline std::string http_version_to_str(http_version ver)
+{
+	switch (ver)
+	{
+		case HTTP_11: return "HTTP/1.1";
+		case HTTP_10: return "HTTP/1.0";
+		default: assert(false);
+	};
+
+	return "";
+}
+
+inline std::ostream& operator <<(std::ostream& stream, http_version ver)
+{
+	return stream << http_version_to_str(ver);
+}
+
 class http_request
 {
 public:
 	http_request& uri(std::string u) { uri_ = u; }
+
+	std::string str() const
+	{
+		std::stringstream ss;
+		ss << method_ << " " << uri_ << " " << ver_ << "\r\n\r\n";
+		return ss.str();
+	}
 
 private:
 	std::string uri_;
@@ -112,9 +168,16 @@ public:
 		return *this;
 	}
 
+	std::string str() const
+	{
+		std::stringstream ss;
+		ss << ver_ << " " << code_ << " " << desc_http_code(code_) << "\r\n\r\n";
+		return ss.str();
+	}
+
 private:
 	int code_ = 200;
-
+	http_version ver_ = HTTP_11;
 };
 
 
