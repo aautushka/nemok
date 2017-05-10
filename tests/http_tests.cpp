@@ -12,7 +12,7 @@ struct http_mock_test : public ::testing::Test
 TEST_F(http_mock_test, replies_to_a_request_according_to_specified_expectation)
 {
 	auto mock = nemok::start<http>();
-	mock.when(http::get("/")).reply(resp(200));
+	mock.when(http::GET("/")).reply(resp(200));
 	
 	auto client = mock.connect();
 	http::send(client, "GET / HTTP/1.1\r\n\r\n");

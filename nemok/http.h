@@ -139,7 +139,12 @@ inline std::ostream& operator <<(std::ostream& stream, http_version ver)
 class http_request
 {
 public:
-	http_request& uri(std::string u) { uri_ = u; }
+	http_request& uri(std::string u) { uri_ = std::move(u); }
+	http_request& method(http_method m) { method_ = m;}
+
+	explicit http_request(http_method m) { method(m); }
+	explicit http_request(http_version v) { version_ = v; }
+	explicit http_request(std::string uri) { uri(std::move(uri); }
 
 	std::string str() const
 	{
@@ -181,7 +186,7 @@ private:
 };
 
 
-class http : public basic_mock<http>
+class http final : public basic_mock<http>
 {
 public:
 	using base_type = basic_mock<http>;
@@ -197,11 +202,51 @@ public:
 
 	static std::string receive(client& c);
 	static void send(client& c, std::string buf);
-	static inline request get(std::string uri) 
+
+	static inline request GET(std::string uri) 
 	{
 		return request().uri(uri);
 	}
-	
+
+	static inline request POST(std::string uri)
+	{
+		return request().method(HTTP_POST).uri(uri);
+	}
+
+	static inline request HEAD(std::string uri)
+	{
+		return request().method(HTTP_HEAD).uri(uri);
+	}
+
+	static inline request PUT(std::string uri)
+	{
+		return request().method(HTTP_PUT).uri(uri);
+	}
+
+	static inline request DELETE(std::string uri)
+	{
+		return request().method(HTTP_DELETE).uri(uri);
+	}
+
+	static inline request TRACE(std::string uri)
+	{
+		return request().method(HTTP_TRACE).uri(uri);
+	}
+
+	static inline request OPTIONS(std::string uri)
+	{
+		return request().method(HTTP_OPTIONS).uri(uri);
+	}
+
+	static inline request CONNECT(std::string uri)
+	{
+		return request().method(HTTP_CONNECT).uri(uri);
+	}
+
+	static inline request PATCH(std::string uri)
+	{
+		return request().method(HTTP_PATCH).uri(uri);
+	}
 };
 
 } // namespace nemok
