@@ -2,8 +2,6 @@
 
 namespace nemok
 {
-namespace http
-{
 
 bool ends_with(const std::string& input, const std::string& test)
 {
@@ -11,7 +9,7 @@ bool ends_with(const std::string& input, const std::string& test)
 		0 == input.compare(input.size() - test.size(), test.size(), test);
 }
 
-std::string receive(client& c)
+std::string http::receive(client& c)
 {
 	char ch;
 	std::string ret;
@@ -25,7 +23,7 @@ std::string receive(client& c)
 
 }
 
-void send(client& c, std::string buf)
+void http::send(client& c, std::string buf)
 {
 	c.write_all(buf.c_str(), buf.size());
 }
@@ -40,6 +38,5 @@ http& http::reply(response r)
 	return *this;
 }
 
-}
-}
+} // namespace nemok
 

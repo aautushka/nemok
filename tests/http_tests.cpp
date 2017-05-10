@@ -6,13 +6,12 @@ struct http_mock_test : public ::testing::Test
 {
 	using req = nemok::http::request;
 	using resp = nemok::http::response;
+	using http = nemok::http;
 };
 
 TEST_F(http_mock_test, DISABLED_replies_to_a_request_according_to_specified_expectation)
 {
-	using namespace nemok;
-
-	auto mock = nemok::start<http::http>();
+	auto mock = nemok::start<http>();
 	mock.when(http::get("/")).reply(resp(200));
 	
 	auto client = mock.connect();

@@ -3,10 +3,7 @@
 
 namespace nemok
 {
-namespace http
-{
-
-const std::map<int, const char*> status_codes
+const std::map<int, const char*> http_status_codes
 {
 	{100, "Continue"},
 	{101, "Switching Protocols"},
@@ -71,67 +68,62 @@ const std::map<int, const char*> status_codes
 	{511, "Network Authentication Required"}
 };
 
-enum method
-{
-	GET,
-	POST, 
-	HEAD, 
-	PUT, 
-	DELETE,
-	TRACE,
-	OPTIONS, 
-	CONNECT,
-	PATCH
-};
-
-enum version
+enum http_version
 {
 	HTTP_10,
 	HTTP_11
 };
 
-class request
+enum http_method
 {
-public:
-	request& uri(std::string u) { _uri = u; }
-
-private:
-	std::string _uri;
-	method _method = method::GET;
-	version _ver = version::HTTP_11;
+	HTTP_GET,
+	HTTP_POST, 
+	HTTP_HEAD, 
+	HTTP_PUT, 
+	HTTP_DELETE,
+	HTTP_TRACE,
+	HTTP_OPTIONS, 
+	HTTP_CONNECT,
+	HTTP_PATCH
 };
 
-class response
+class http_request
 {
 public:
-	explicit response(int code)
+	http_request& uri(std::string u) { uri_ = u; }
+
+private:
+	std::string uri_;
+	http_method method_ = HTTP_GET;
+	http_version ver_ = HTTP_11;
+};
+
+class http_response
+{
+public:
+	explicit http_response(int code)
 	{
 		this->code(code);
 	}
 	
-	response& code(int code)
+	http_response& code(int code)
 	{
-		_code = code;
+		code_ = code;
 		return *this;
 	}
 
 private:
-	int _code = 200;
+	int code_ = 200;
 
 };
 
-inline request get(std::string uri)
-{
-	return request().uri(uri);
-}
 
-std::string receive(client& c);
-void send(client& c, std::string buf);
-	
 class http : public basic_mock<http>
 {
 public:
 	using base_type = basic_mock<http>;
+	using response = http_response;
+	using request = http_request;
 
 	http() {}
 
@@ -139,8 +131,15 @@ public:
 
 	http& when(request r);
 	http& reply(response r);
+
+	static std::string receive(client& c);
+	static void send(client& c, std::string buf);
+	static inline request get(std::string uri) 
+	{
+		return request().uri(uri);
+	}
+	
 };
 
-}
-}
+} // namespace nemok
 
