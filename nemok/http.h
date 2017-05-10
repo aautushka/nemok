@@ -143,8 +143,9 @@ public:
 	http_request& method(http_method m) { method_ = m;}
 
 	explicit http_request(http_method m) { method(m); }
-	explicit http_request(http_version v) { version_ = v; }
-	explicit http_request(std::string uri) { uri(std::move(uri); }
+	explicit http_request(http_version v) { ver_ = v; }
+	explicit http_request(std::string uri) { uri = std::move(uri); }
+	http_request() = default;
 
 	std::string str() const
 	{
