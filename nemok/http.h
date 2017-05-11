@@ -183,7 +183,12 @@ public:
 
 	self_type& header(std::pair<std::string, std::string> key_val)
 	{
-		header_ = std::move(key_val);
+		if (!headers_)
+		{
+			headers_ = headers_type();
+		}
+
+		headers_->insert(key_val);
 		return *this;
 	}
 
@@ -199,9 +204,12 @@ public:
 		ss << method() << " " << uri() << " " << version() << "\r\n";
 		ss << "Content-Length: " << content().size() << "\r\n";
 	
-		if (header_)
+		if (headers_)
 		{
-			ss << header_->first << ": " << header_->second << "\r\n";
+			for (auto& h : *headers_)
+			{
+				ss << h.first << ": " << h.second << "\r\n";
+			}
 		}
 
 		ss << "\r\n\r\n";
@@ -216,7 +224,7 @@ public:
 		const bool match_ver = match_opt(ver_, rhs.ver_);
 		const bool match_method = match_opt(method_, rhs.method_);
 		const bool match_content = match_opt(content_, rhs.content_);
-		const bool match_header = match_opt(header_, rhs.header_);
+		const bool match_header = match_headers_opt(rhs);
 
 		return match_uri && match_ver && match_method && match_content && match_header;
 	}
@@ -226,6 +234,25 @@ private:
 	static bool match_opt(const T& lhs, const T& rhs)
 	{
 		return !lhs || !rhs || *lhs == *rhs;
+	}
+
+	bool match_headers_opt(const http_request& rhs) const
+	{
+		if (!headers_ || !rhs.headers_)
+		{
+			return true;
+		}
+
+		for (auto& h : *headers_)
+		{
+			auto i = rhs.headers_->find(h.first);
+			if (i == rhs.headers_->end() || h.second != i->second)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	std::string uri() const
@@ -255,7 +282,9 @@ private:
 	optional<http_method> method_;
 	optional<http_version> ver_;
 	optional<std::string> content_;	
-	optional<std::pair<std::string, std::string>> header_;
+
+	using headers_type = std::map<std::string, std::string>;
+	optional<headers_type> headers_;
 };
 
 class http_response

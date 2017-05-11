@@ -312,6 +312,7 @@ public:
 		return headers_.count();
 	}
 
+
 private:
 	headers headers_;
 	int status_ = 0;
@@ -340,9 +341,9 @@ public:
 				.uri(wire_request.uri())
 				.content(wire_request.content());
 
-			if (wire_request.count_headers() > 1)
+			for (size_t i = 1; i < wire_request.count_headers(); ++i)
 			{
-				actual_request.header(wire_request.get_header(1));
+				actual_request.header(wire_request.get_header(i));
 			}
 
 			if (request_.match(actual_request))

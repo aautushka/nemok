@@ -120,3 +120,31 @@ TEST_F(http_mock_test, fails_to_match_the_expected_http_header)
 	EXPECT_EQ("HTTP/1.1 404 Not Found\r\n\r\n", http::receive(client));
 }
 
+TEST_F(http_mock_test, matches_multiple_headers)
+{
+	auto mock = nemok::start<http>();
+
+	mock.when(http::GET()
+			.header("User-Agent", "curl")
+			.header("Accept-Encoding", "gzip"))
+		.reply(200);
+
+	mock.when_unexpected().reply(500);
+
+	auto client = mock.connect();
+	http::send(client, "GET / HTTP/1.1\r\nUser-Agent: curl\r\nAccept-Encoding: gzip\r\n\r\n");
+
+	EXPECT_EQ("HTTP/1.1 200 OK\r\n\r\n", http::receive(client));
+}
+
+TEST_F(http_mock_test, when_matching_http_headers_skips_over_unexpected_ones)
+{
+	auto mock = nemok::start<http>();
+	mock.when(http::GET().header("User-Agent", "curl")).reply(200);
+
+	auto client = mock.connect();
+	http::send(client, "GET / HTTP/1.1\r\nUser-Agent: curl\r\nAccept-Encoding: gzip\r\n\r\n");
+
+	EXPECT_EQ("HTTP/1.1 200 OK\r\n\r\n", http::receive(client));
+}
+
