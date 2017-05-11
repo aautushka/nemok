@@ -85,7 +85,7 @@ std::vector<std::string> tokenize(const char* str, size_t len)
 class matches_request
 {
 public:
-	explicit matches_request(http::request request): request_(std::move(request_)) {}
+	explicit matches_request(http::request request): request_(std::move(request)) {}
 
 	bool operator ()(buffer_type& input)
 	{
@@ -114,9 +114,8 @@ public:
 					}
 				} 
 			}
-
-			return false;
 		}
+		return false;
 	}
 
 private:

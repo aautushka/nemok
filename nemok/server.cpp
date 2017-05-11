@@ -340,11 +340,13 @@ matcher& matcher::freeze(useconds_t usec)
 matcher& matcher::once()
 {
 	current().max_calls = 1;
+	return *this;
 }
 
 matcher& matcher::times(int n)
 {
 	current().max_calls = n;
+	return *this;
 }
 
 matcher& matcher::order(int n)

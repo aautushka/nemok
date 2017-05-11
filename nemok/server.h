@@ -342,7 +342,7 @@ private:
 class line
 {
 public:
-	line& terminator(char ch) {_term = ch;}
+	line& terminator(char ch) {_term = ch; return *this;}
 	line() { }
 	explicit line(std::string exact_line) : _line(exact_line) {}
 
