@@ -1,5 +1,6 @@
 #pragma once
 #include <sstream>
+#include <experimental/optional>
 #include "server.h"
 
 namespace nemok
@@ -78,12 +79,14 @@ inline std::string desc_http_code(int code)
 
 enum http_version
 {
+	HTTP_BAD_VERSION,
 	HTTP_10,
 	HTTP_11
 };
 
 enum http_method
 {
+	HTTP_BAD_METHOD,
 	HTTP_GET,
 	HTTP_POST, 
 	HTTP_HEAD, 
@@ -114,6 +117,24 @@ inline std::string http_method_to_str(http_method method)
 	return "";
 }
 
+inline http_method http_method_from_str(const std::string str)
+{
+	if (str == "GET")
+	{
+		return HTTP_GET;
+	}
+	else if (str == "POST")
+	{
+		return HTTP_POST;
+	}
+	else if (str == "HEAD")
+	{
+		return HTTP_HEAD;
+	}
+
+	return HTTP_BAD_METHOD;
+}
+
 inline std::ostream& operator <<(std::ostream& stream, http_method method)
 {
 	return stream << http_method_to_str(method);
@@ -131,6 +152,16 @@ inline std::string http_version_to_str(http_version ver)
 	return "";
 }
 
+inline http_version http_version_from_str(const std::string& str)
+{
+	if (str == "HTTP/1.1")
+	{
+		return HTTP_11;
+	}
+
+	return HTTP_BAD_VERSION;
+}
+
 inline std::ostream& operator <<(std::ostream& stream, http_version ver)
 {
 	return stream << http_version_to_str(ver);
@@ -139,8 +170,8 @@ inline std::ostream& operator <<(std::ostream& stream, http_version ver)
 class http_request
 {
 public:
-	http_request& uri(std::string u) { uri_ = std::move(u); }
-	http_request& method(http_method m) { method_ = m;}
+	http_request& uri(std::string u) { uri_ = u; return *this; }
+	http_request& method(http_method m) { method_ = m; return *this; }
 
 	explicit http_request(http_method m) { method(m); }
 	explicit http_request(http_version v) { ver_ = v; }
@@ -150,14 +181,38 @@ public:
 	std::string str() const
 	{
 		std::stringstream ss;
-		ss << method_ << " " << uri_ << " " << ver_ << "\r\n\r\n";
+		ss << method() << " " << uri() << " " << version() << "\r\n\r\n";
 		return ss.str();
 	}
 
+	bool match(const http_request& rhs) const
+	{
+		const bool match_uri = !uri_ || !rhs.uri_ || *uri_ == rhs.uri_;
+		const bool match_ver = !ver_ || !rhs.ver_ || *ver_ == rhs.ver_;
+		const bool match_method = !method_ || !rhs.method_ || *method_ == *rhs.method_;
+
+		return match_uri && match_ver && match_method;
+	}
+
 private:
-	std::string uri_;
-	http_method method_ = HTTP_GET;
-	http_version ver_ = HTTP_11;
+	std::string uri() const
+	{
+		return uri_ ? *uri_ : "/";
+	}
+
+	http_method method() const
+	{
+		return method_ ? *method_ : HTTP_GET;
+	}
+
+	http_version version() const
+	{
+		return ver_ ? *ver_ : HTTP_11;
+	}
+
+	std::experimental::optional<std::string> uri_;
+	std::experimental::optional<http_method> method_ = HTTP_GET;
+	std::experimental::optional<http_version> ver_ = HTTP_11;
 };
 
 class http_response
@@ -204,7 +259,7 @@ public:
 	static std::string receive(client& c);
 	static void send(client& c, std::string buf);
 
-	static inline request GET(std::string uri) 
+	static inline request GET(std::string uri = "/") 
 	{
 		return request().uri(uri);
 	}
@@ -247,6 +302,11 @@ public:
 	static inline request PATCH(std::string uri)
 	{
 		return request().method(HTTP_PATCH).uri(uri);
+	}
+
+	static inline request unexpected()
+	{
+		return request();	
 	}
 };
 
