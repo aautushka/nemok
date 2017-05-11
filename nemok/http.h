@@ -211,8 +211,8 @@ private:
 	}
 
 	std::experimental::optional<std::string> uri_;
-	std::experimental::optional<http_method> method_ = HTTP_GET;
-	std::experimental::optional<http_version> ver_ = HTTP_11;
+	std::experimental::optional<http_method> method_;
+	std::experimental::optional<http_version> ver_;
 };
 
 class http_response
@@ -259,9 +259,14 @@ public:
 	static std::string receive(client& c);
 	static void send(client& c, std::string buf);
 
-	static inline request GET(std::string uri = "/") 
+	static inline request GET(std::string uri) 
 	{
-		return request().uri(uri);
+		return request(HTTP_GET).uri(uri);
+	}
+
+	static inline request GET()
+	{
+		return request(HTTP_GET);
 	}
 
 	static inline request POST(std::string uri)
