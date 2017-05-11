@@ -170,8 +170,11 @@ inline std::ostream& operator <<(std::ostream& stream, http_version ver)
 class http_request
 {
 public:
-	http_request& uri(std::string u) { uri_ = u; return *this; }
-	http_request& method(http_method m) { method_ = m; return *this; }
+	using self_type = http_request;
+
+	self_type& uri(std::string u) { uri_ = u; return *this; }
+	self_type& method(http_method m) { method_ = m; return *this; }
+	self_type& content(std::string c) { content_ = c; return *this; }
 
 	explicit http_request(http_method m) { method(m); }
 	explicit http_request(http_version v) { ver_ = v; }
@@ -181,20 +184,32 @@ public:
 	std::string str() const
 	{
 		std::stringstream ss;
-		ss << method() << " " << uri() << " " << version() << "\r\n\r\n";
+
+		ss << method() << " " << uri() << " " << version() << "\r\n";
+		ss << "Content-Length: " << content().size() << "\r\n";
+		ss << "\r\n\r\n";
+		ss << content();
+
 		return ss.str();
 	}
 
 	bool match(const http_request& rhs) const
 	{
-		const bool match_uri = !uri_ || !rhs.uri_ || *uri_ == rhs.uri_;
-		const bool match_ver = !ver_ || !rhs.ver_ || *ver_ == rhs.ver_;
-		const bool match_method = !method_ || !rhs.method_ || *method_ == *rhs.method_;
+		const bool match_uri = match_opt(uri_, rhs.uri_); 
+		const bool match_ver = match_opt(ver_, rhs.ver_);
+		const bool match_method = match_opt(method_, rhs.method_);
+		const bool match_content = match_opt(content_, rhs.content_);
 
-		return match_uri && match_ver && match_method;
+		return match_uri && match_ver && match_method && match_content;
 	}
 
 private:
+	template <typename T>
+	static bool match_opt(const T& lhs, const T& rhs)
+	{
+		return !lhs || !rhs || *lhs == *rhs;
+	}
+
 	std::string uri() const
 	{
 		return uri_ ? *uri_ : "/";
@@ -210,9 +225,18 @@ private:
 		return ver_ ? *ver_ : HTTP_11;
 	}
 
-	std::experimental::optional<std::string> uri_;
-	std::experimental::optional<http_method> method_;
-	std::experimental::optional<http_version> ver_;
+	std::string content() const
+	{
+		return content_ ? *content_ : "";
+	}
+
+	template <typename T> 
+	using optional = std::experimental::optional<T>;
+
+	optional<std::string> uri_;
+	optional<http_method> method_;
+	optional<http_version> ver_;
+	optional<std::string> content_;	
 };
 
 class http_response
@@ -255,6 +279,7 @@ public:
 
 	http& when(request r);
 	http& reply(response r);
+	http& reply(int status_code);
 
 	static std::string receive(client& c);
 	static void send(client& c, std::string buf);
@@ -272,6 +297,11 @@ public:
 	static inline request POST(std::string uri)
 	{
 		return request().method(HTTP_POST).uri(uri);
+	}
+
+	static inline request POST()
+	{
+		return request().method(HTTP_POST);
 	}
 
 	static inline request HEAD(std::string uri)
