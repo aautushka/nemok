@@ -583,6 +583,11 @@ public:
 		return t->when(std::move(u));
 	}
 
+	T& when_unexpected()
+	{
+		return t->when_unexpected();
+	}
+
 private:
 	std::unique_ptr<T> t;
 };

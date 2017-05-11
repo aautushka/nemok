@@ -176,6 +176,17 @@ public:
 	self_type& method(http_method m) { method_ = m; return *this; }
 	self_type& content(std::string c) { content_ = c; return *this; }
 
+	self_type& header(std::string key, std::string val)
+	{
+		return header(std::make_pair(key, val));
+	}
+
+	self_type& header(std::pair<std::string, std::string> key_val)
+	{
+		header_ = std::move(key_val);
+		return *this;
+	}
+
 	explicit http_request(http_method m) { method(m); }
 	explicit http_request(http_version v) { ver_ = v; }
 	explicit http_request(std::string uri) { uri = std::move(uri); }
@@ -187,6 +198,12 @@ public:
 
 		ss << method() << " " << uri() << " " << version() << "\r\n";
 		ss << "Content-Length: " << content().size() << "\r\n";
+	
+		if (header_)
+		{
+			ss << header_->first << ": " << header_->second << "\r\n";
+		}
+
 		ss << "\r\n\r\n";
 		ss << content();
 
@@ -199,8 +216,9 @@ public:
 		const bool match_ver = match_opt(ver_, rhs.ver_);
 		const bool match_method = match_opt(method_, rhs.method_);
 		const bool match_content = match_opt(content_, rhs.content_);
+		const bool match_header = match_opt(header_, rhs.header_);
 
-		return match_uri && match_ver && match_method && match_content;
+		return match_uri && match_ver && match_method && match_content && match_header;
 	}
 
 private:
@@ -237,6 +255,7 @@ private:
 	optional<http_method> method_;
 	optional<http_version> ver_;
 	optional<std::string> content_;	
+	optional<std::pair<std::string, std::string>> header_;
 };
 
 class http_response
@@ -278,6 +297,12 @@ public:
 	using base_type::when;
 
 	http& when(request r);
+
+	http& when_unexpected()
+	{
+		return when(unexpected());
+	}
+
 	http& reply(response r);
 	http& reply(int status_code);
 

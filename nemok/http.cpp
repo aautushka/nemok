@@ -302,6 +302,16 @@ public:
 		return size_;
 	}
 
+	std::pair<std::string, std::string> get_header(int i) const
+	{
+		return headers_[i];
+	}
+
+	size_t count_headers() const
+	{
+		return headers_.count();
+	}
+
 private:
 	headers headers_;
 	int status_ = 0;
@@ -329,6 +339,11 @@ public:
 				.method(wire_request.method())
 				.uri(wire_request.uri())
 				.content(wire_request.content());
+
+			if (wire_request.count_headers() > 1)
+			{
+				actual_request.header(wire_request.get_header(1));
+			}
 
 			if (request_.match(actual_request))
 			{
