@@ -1,8 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <unistd.h>
 #include <strings.h>
 #include <poll.h>
@@ -52,22 +50,11 @@ void client::connect(port_t port)
 {
 	disconnect();
 
-	_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (_sock == -1)
-	{
-		throw network_error("can't create a socket");
-	}
+	socket new_socket;
+	new_socket.create();
+	new_socket.connect(port);
 
-	struct sockaddr_in addr;
-	bzero((char*)&addr, sizeof(addr));
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-
-	if (-1 == ::connect(_sock, (sockaddr*)&addr, sizeof(addr)))
-	{
-		throw network_error("can't connect a socket");
-	}
+	_sock = new_socket.detach();
 }
 
 int wait_while_ready(pollfd& fd)

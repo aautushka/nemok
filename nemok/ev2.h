@@ -20,141 +20,6 @@ public:
 	explicit libevent_error(const char* message) : exception(message) {}
 };
 
-class socket
-{
-public:
-	socket(const socket&) = delete;
-	socket& operator =(const socket&) = delete;
-
-	socket() {}
-
-	socket(socket&& rhs)
-	{
-		fd_ = rhs.detach();
-	}
-
-	socket& operator =(socket&& rhs)
-	{
-		close();
-		fd_ = rhs.detach();
-		return *this;
-	}
-
-	void create()
-	{
-		assert(fd_ == -1);
-		fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
-		if (fd_ == -1)
-		{
-			throw system_error("can't create socket");
-		}
-	}
-	
-	void bind(uint16_t port)
-	{
-		assert(fd_ != -1);
-
-		struct sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(port); 
-
-		if (-1 == ::bind(fd_, (sockaddr*)&addr, sizeof(addr)))
-		{
-			throw system_error("can't bind socket");
-		}
-	}
-
-	void reuse_addr(int yes = 1)
-	{
-		assert(fd_ != -1);
-		setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-	}
-
-	void listen()
-	{
-		assert(fd_ != -1);
-		if (-1 == ::listen(fd_, 0))
-		{
-			throw system_error("can't listen socket");
-		}
-	}
-
-	void close()
-	{
-		if (fd_ != -1)
-		{
-			::close(fd_);
-			detach();
-		}
-	}
-
-	int detach()
-	{
-		int ret = fd_;
-		fd_ = -1;
-		return ret;
-	}
-
-	void attach(int fd)
-	{
-		close();
-		fd_ = fd;
-	}
-
-	void make_nonblocking()
-	{
-		assert(fd_ != -1);
-		if (-1 == evutil_make_socket_nonblocking(fd_))
-		{
-			throw system_error("can't make socket nonblocking");
-		}
-	}
-
-	~socket()
-	{
-		close();
-	}
-
-	socket accept()
-	{
-		sockaddr_in addr;
-		socklen_t len = sizeof(addr);
-		int fd = ::accept(fd_, (sockaddr*)&addr, &len);
-		if (fd == -1)
-		{
-			throw system_error("can't accept client connection");
-		}
-
-		socket ret;
-		ret.attach(fd);
-		return std::move(ret);
-	}
-
-	int fd() const
-	{
-		return fd_;
-	}
-
-	uint16_t get_port()
-	{
-		assert(-1 != fd_);
-
-		sockaddr_in addr;
-		socklen_t socklen = sizeof(addr);
-		if (-1 == getsockname(fd_, (sockaddr*)&addr, &socklen))
-		{
-			throw system_error("can't get socket address");
-		}
-
-		return ntohs(addr.sin_port); 
-	}
-
-private:
-	evutil_socket_t fd_ = -1;
-};
-
 
 class buffer
 {
@@ -549,6 +414,9 @@ private:
 	{
 		using namespace std::placeholders;
 		std::thread t(std::bind(&server::run_client, this, _1), std::move(client_socket));
+		
+		// TODO: this is no good, server should kill client threads itself
+		// besides, I should use a pool for this
 		t.detach();
 	}
 

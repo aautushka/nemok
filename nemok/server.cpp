@@ -138,25 +138,15 @@ void server::run_server(std::promise<void> ready)
 {
 	try
 	{
-		int s = socket(AF_INET, SOCK_STREAM, 0);
-
-		if (s == -1)
-		{
-			throw network_error("can't create a socket");
-		}
-
-		before_leaving close_socket([=](){::shutdown(s, SHUT_RDWR); ::close(s);});
+		socket s;
+		s.create();
 		client_pool clients;
 
-		set_socket_opts(s);
+		s.reuse_addr();
 		bind_server_socket(s);
+		s.listen();
 
-		if (-1 == listen(s, 5))
-		{
-			throw network_error("can't listen on a socket");
-		}
-
-		fcntl(s, F_SETFL, O_NDELAY);
+		fcntl(s.fd(), F_SETFL, O_NDELAY);
 
 		ready.set_value();
 
@@ -179,54 +169,27 @@ void server::run_server(std::promise<void> ready)
 	_effective_port = 0;
 }
 
-void server::set_socket_opts(int sock)
+void server::bind_server_socket(socket& sock)
 {
-	int flag = 1;
-	
-	// TODO: do we really need TCP_NODELTA?
-	//setsockopt(s, IPPROTO_TCP, TCP_NODELTA, &flag, sizeof(flag));
-
-	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+	sock.bind(_server_port);
+	_effective_port = sock.get_port();
 }
 
-void server::bind_server_socket(int sock)
-{
-	struct sockaddr_in addr;
-	bzero(&addr, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(_server_port);
-	
-	if (-1 == bind(sock, (struct sockaddr*)&addr, sizeof(addr)))
-	{
-		throw network_error("can't bind a socket");
-	}
-
-	socklen_t socklen = sizeof(addr);
-	if (-1 == getsockname(sock, (sockaddr*)&addr, &socklen))
-	{
-		throw network_error("can't get socket address");
-	}
-
-	_effective_port = ntohs(addr.sin_port); 
-}
-
-void server::accept_connections(int server_socket, std::function<void(int)> handler)
+void server::accept_connections(socket& server_socket, std::function<void(int)> handler)
 {
 	while (!_terminate_server_flag)
 	{
-		sockaddr_in client_addr;
-		socklen_t size = sizeof(client_addr);
-		int client_socket = accept(server_socket, (sockaddr*)&client_addr, &size);
-		if (client_socket == -1 && errno == EWOULDBLOCK) 
+		socket client_socket = server_socket.try_accept();
+		if (client_socket.bad() && errno == EWOULDBLOCK)
 		{
 			::usleep(1);
 			continue;
 		}
 
-		if (client_socket != -1)
+		if (!client_socket.bad())
 		{
-			handler(client_socket);
+			handler(client_socket.fd());
+			client_socket.detach();
 		}
 	}
 }

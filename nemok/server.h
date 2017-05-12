@@ -8,10 +8,15 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <unistd.h>
 #include <algorithm>
 #include <regex.h>
 #include <cstring>
 #include <cassert>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
 
 /*
 	auto mock = nemok::start<nemok::http>();
@@ -111,6 +116,197 @@ class not_connected : public exception
 public:
 	not_connected() : exception("client is not connected") {}
 };
+
+class socket
+{
+public:
+	socket(const socket&) = delete;
+	socket& operator =(const socket&) = delete;
+
+	socket() {}
+
+	socket(socket&& rhs)
+	{
+		fd_ = rhs.detach();
+	}
+
+	socket& operator =(socket&& rhs)
+	{
+		close();
+		fd_ = rhs.detach();
+		return *this;
+	}
+
+	void create()
+	{
+		assert(fd_ == -1);
+		fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+		if (fd_ == -1)
+		{
+			throw system_error("can't create socket");
+		}
+	}
+	
+	void bind(uint16_t port)
+	{
+		assert(fd_ != -1);
+
+		struct sockaddr_in addr;
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons(port); 
+
+		if (-1 == ::bind(fd_, (sockaddr*)&addr, sizeof(addr)))
+		{
+			throw system_error("can't bind socket");
+		}
+	}
+
+	void reuse_addr(int yes = 1)
+	{
+		assert(fd_ != -1);
+		setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+	}
+
+	void listen()
+	{
+		assert(fd_ != -1);
+		if (-1 == ::listen(fd_, 0))
+		{
+			throw system_error("can't listen socket");
+		}
+	}
+
+	void close()
+	{
+		if (fd_ != -1)
+		{
+			::shutdown(fd_, SHUT_RDWR);
+			::close(fd_);
+			detach();
+		}
+	}
+
+	int detach()
+	{
+		int ret = fd_;
+		fd_ = -1;
+		return ret;
+	}
+
+	void attach(int fd)
+	{
+		close();
+		fd_ = fd;
+	}
+
+	void make_nonblocking()
+	{
+		int flags = get_flags();
+
+		if (!(flags & O_NONBLOCK))
+		{
+			set_flags(flags | O_NONBLOCK);
+		}
+	}
+
+	int get_flags()
+	{
+		assert(fd_ != -1);
+		int flags;
+		if ((flags = fcntl(fd_, F_GETFL)) == -1)
+		{
+			throw system_error("can't get socket flags");
+		}
+
+		return flags;
+	}
+
+	void set_flags(int flags)
+	{
+		assert(fd_ != -1);
+		if (-1 == fcntl(fd_, F_SETFL, flags))
+		{
+			throw system_error("can't set socket flags");
+		}
+	}
+
+	~socket()
+	{
+		close();
+	}
+
+	socket accept()
+	{
+		sockaddr_in addr;
+		socklen_t len = sizeof(addr);
+		int fd = ::accept(fd_, (sockaddr*)&addr, &len);
+		if (fd == -1)
+		{
+			throw system_error("can't accept client connection");
+		}
+
+		socket ret;
+		ret.attach(fd);
+		return std::move(ret);
+	}
+
+	socket try_accept()
+	{
+		sockaddr_in addr;
+		socklen_t len = sizeof(addr);
+		int fd = ::accept(fd_, (sockaddr*)&addr, &len);
+
+		socket ret;
+		ret.attach(fd);
+		return std::move(ret);
+	}
+
+	int fd() const
+	{
+		return fd_;
+	}
+
+	uint16_t get_port()
+	{
+		assert(-1 != fd_);
+
+		sockaddr_in addr;
+		socklen_t socklen = sizeof(addr);
+		if (-1 == getsockname(fd_, (sockaddr*)&addr, &socklen))
+		{
+			throw system_error("can't get socket address");
+		}
+
+		return ntohs(addr.sin_port); 
+	}
+
+	void connect(uint16_t port)
+	{
+		assert(-1 != fd_);
+
+		struct sockaddr_in addr;
+		bzero((char*)&addr, sizeof(addr));
+		addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+
+		if (-1 == ::connect(fd_, (sockaddr*)&addr, sizeof(addr)))
+		{
+			throw system_error("can't connect socket");
+		}
+	}
+
+	bool bad() const
+	{
+		return fd_ == -1;
+	}
+
+private:
+	int fd_ = -1;
+};
+
 
 class posix_regex
 {
@@ -270,9 +466,8 @@ private:
 	void run_server(std::promise<void> ready);
 	void run_client(client& s);
 	virtual void serve_client(client& c) = 0;
-	void accept_connections(int sock, std::function<void(int)> handler);
-	void bind_server_socket(int sock);
-	void set_socket_opts(int sock);
+	void accept_connections(socket& sock, std::function<void(int)> handler);
+	void bind_server_socket(socket& sock);
 
 	std::thread _server_thread;
 	port_t _server_port;
