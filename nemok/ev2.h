@@ -124,7 +124,6 @@ public:
 		int fd = ::accept(fd_, (sockaddr*)&addr, &len);
 		if (fd == -1)
 		{
-			std::cout << "accept failed " << errno << std::endl;
 			throw system_error("can't accept client connection");
 		}
 
@@ -231,7 +230,6 @@ public:
 		const int removed = evbuffer_remove(buf_, &out[prev], len);
 		out.resize(prev + removed);
 
-		std::cout << "received " << removed << " bytes" << std::endl;
 		return removed;
 	}
 
@@ -336,8 +334,8 @@ public:
 		accept_socket_ = &sock;
 
 		auto h = new decltype(handler)(std::move(handler));
-		event* ev = event_new(evbase_, sock.fd(), EV_READ | EV_PERSIST, on_accept, this);
-		event_add(ev, nullptr);
+		accept_event_ = event_new(evbase_, sock.fd(), EV_READ | EV_PERSIST, on_accept, this);
+		event_add(accept_event_, nullptr);
 	}
 
 	void read(socket sock, std::function<void(connection&)> handler)
@@ -369,6 +367,7 @@ private:
 	event_base* evbase_ = nullptr;
 	std::function<void(socket&)> accept_handler_;
 	socket* accept_socket_ = nullptr;
+	event* accept_event_ = nullptr;
 
 	socket read_socket_;
 	std::function<void(connection&)> read_handler_;
@@ -382,7 +381,6 @@ private:
 
 	static void on_read(bufferevent* ev, void* arg)
 	{
-		std::cout << "client communication received\n";
 		event_loop& self = *static_cast<event_loop*>(arg);
 		self.on_read(ev);
 	}
@@ -394,12 +392,10 @@ private:
 	static void on_error(bufferevent* ev, short err, void* arg)
 	{
 		// TODO: close the connection
-		std::cout << "on_error called\n";
 	}
 
 	void on_accept(evutil_socket_t fd)
 	{
-		std::cout << "client connection accepted \n";
 		socket sock;
 		sock.attach(fd);
 		accept_handler_(sock);
@@ -492,6 +488,10 @@ public:
 	void stop()
 	{
 		acceptor_.stop();
+
+		// we need to make this connection in order to break from the loop
+		// I failed to find a better solution
+		connect_client();
 	}
 	
 	void wait()
@@ -543,7 +543,6 @@ private:
 
 	void on_client_connection(socket client_socket)
 	{
-		std::cout << "on_client_connection\n";
 		using namespace std::placeholders;
 		std::thread t(std::bind(&server::run_client, this, _1), std::move(client_socket));
 		t.detach();
@@ -551,12 +550,10 @@ private:
 
 	void run_client(socket client_socket)
 	{
-		std::cout << "handling client connection\n";
 		event_loop loop;
 		loop.create();
 		loop.read(std::move(client_socket), [&](connection& c){handle_client(c);});
 		loop.dispatch();
-		std::cout << "termination client loop\n";
 	}
 
 	void handle_client(connection& conn)

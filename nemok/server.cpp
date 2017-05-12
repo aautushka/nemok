@@ -228,10 +228,6 @@ void server::accept_connections(int server_socket, std::function<void(int)> hand
 		{
 			handler(client_socket);
 		}
-		else
-		{
-			std::cout << "accept error " << errno << std::endl;
-		}
 	}
 }
 
@@ -288,7 +284,6 @@ std::string read_all(client& cl, size_t len)
 		ret.resize(len);
 		cl.read_all(&ret[0], ret.size());
 	}
-	std::cout << "client reads " << ret << std::endl;
 	return std::move(ret); 
 }
 
