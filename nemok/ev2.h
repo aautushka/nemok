@@ -361,7 +361,8 @@ public:
 
 	void stop()
 	{
-		event_base_loopexit(evbase_, nullptr);	
+		//event_base_loopexit(evbase_, nullptr);	
+		event_base_loopbreak(evbase_);
 	}
 
 private:
@@ -381,6 +382,7 @@ private:
 
 	static void on_read(bufferevent* ev, void* arg)
 	{
+		std::cout << "client communication received\n";
 		event_loop& self = *static_cast<event_loop*>(arg);
 		self.on_read(ev);
 	}
@@ -392,10 +394,12 @@ private:
 	static void on_error(bufferevent* ev, short err, void* arg)
 	{
 		// TODO: close the connection
+		std::cout << "on_error called\n";
 	}
 
 	void on_accept(evutil_socket_t fd)
 	{
+		std::cout << "client connection accepted \n";
 		socket sock;
 		sock.attach(fd);
 		accept_handler_(sock);
@@ -533,22 +537,26 @@ private:
 		port_ = s.get_port();
 
 
-		acceptor_ += [&](socket s){on_client_connection(std::move(s));};
+		acceptor_ += [&](socket s){this->on_client_connection(std::move(s));};
 		acceptor_.accept(std::move(s));
 	}
 
 	void on_client_connection(socket client_socket)
 	{
-		std::thread t([&](){this->run_client(std::move(client_socket));});
+		std::cout << "on_client_connection\n";
+		using namespace std::placeholders;
+		std::thread t(std::bind(&server::run_client, this, _1), std::move(client_socket));
 		t.detach();
 	}
 
 	void run_client(socket client_socket)
 	{
+		std::cout << "handling client connection\n";
 		event_loop loop;
 		loop.create();
 		loop.read(std::move(client_socket), [&](connection& c){handle_client(c);});
 		loop.dispatch();
+		std::cout << "termination client loop\n";
 	}
 
 	void handle_client(connection& conn)
