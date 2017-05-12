@@ -482,7 +482,11 @@ public:
 	{
 		port_ = port;
 
-		server_thread_ = std::thread([&](){this->run_server();});
+		std::promise<void> server_ready;
+		std::future<void> ready_future = server_ready.get_future();
+
+		server_thread_ = std::thread([&](auto p){this->run_server(std::move(p));}, std::move(server_ready));
+		ready_future.wait();
 	}
 
 	void stop()
@@ -524,7 +528,7 @@ public:
 	}
 
 private:
-	void run_server()
+	void run_server(std::promise<void> ready)
 	{
 		socket s;
 
@@ -535,7 +539,7 @@ private:
 		s.make_nonblocking();
 
 		port_ = s.get_port();
-
+		ready.set_value();
 
 		acceptor_ += [&](socket s){this->on_client_connection(std::move(s));};
 		acceptor_.accept(std::move(s));

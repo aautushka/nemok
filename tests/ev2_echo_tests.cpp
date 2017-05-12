@@ -26,7 +26,6 @@ struct ev2_echo_test : public ::testing::Test
 TEST_F(ev2_echo_test, communicates_with_echo_server)
 {
 	start();
-	sleep(1);
 	auto client = server.connect_client();
 	client.write_all("hello world", 11);
 
