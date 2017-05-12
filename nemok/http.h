@@ -3,6 +3,10 @@
 #include <experimental/optional>
 #include "server.h"
 
+// TODO:
+// * assign a default timeout to every connection, the test application should never hang 
+// * more advanced matching strategies (regex, lambda)
+
 namespace nemok
 {
 

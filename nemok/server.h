@@ -70,14 +70,22 @@ private:
 	const char* _message;
 };
 
-class network_error : public exception
+class system_error : public exception
 {
 public:
-	network_error() : exception("network error"), _errno(errno) {}
-	explicit network_error(const char* message) : exception(message), _errno(errno) {}
+	system_error() : exception("system error"), _errno(errno) {}
+	explicit system_error(const char* message): exception(message), _errno(errno) {}
 
+	int error_code() const {return _errno;}
 private:
 	int _errno;
+};
+		
+class network_error : public system_error
+{
+public:
+	network_error() : system_error() {}
+	explicit network_error(const char* message) : system_error(message) {}
 };
 
 class already_running : public exception
@@ -242,8 +250,8 @@ public:
 	server();
 	virtual ~server();
 
-	server(server&) = delete;
-	server& operator =(server&) = delete;
+	server(const server&) = delete;
+	server& operator =(const server&) = delete;
 
 	// if zero is passed, we will pick the next free port automatically
 	// the function exits once the server is ready to accept connections

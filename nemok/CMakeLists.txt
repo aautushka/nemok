@@ -7,6 +7,7 @@ set(SRC
   client.cpp
   http.h
   http.cpp
+  ev2.h
 )
 
 add_library(nemok ${SRC})
