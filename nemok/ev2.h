@@ -199,8 +199,8 @@ public:
 		accept_socket_ = &sock;
 
 		auto h = new decltype(handler)(std::move(handler));
-		accept_event_ = event_new(evbase_, sock.fd(), EV_READ | EV_PERSIST, on_accept, this);
-		event_add(accept_event_, nullptr);
+		event* ev = event_new(evbase_, sock.fd(), EV_READ | EV_PERSIST, on_accept, this);
+		event_add(ev, nullptr);
 	}
 
 	void read(socket sock, std::function<void(connection&)> handler)
@@ -232,7 +232,6 @@ private:
 	event_base* evbase_ = nullptr;
 	std::function<void(socket&)> accept_handler_;
 	socket* accept_socket_ = nullptr;
-	event* accept_event_ = nullptr;
 
 	socket read_socket_;
 	std::function<void(connection&)> read_handler_;

@@ -8,6 +8,7 @@ set(SRC
   telnet_tests
   http_tests
   ev2_echo_tests
+  http_parser_tests
 )
 
 add_executable(tests ${SRC})
